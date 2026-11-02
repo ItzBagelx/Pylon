@@ -653,10 +653,11 @@ footer a { color: var(--accent); }
   // Long ranges are bucketed: half-hours up to 7 days, 3-hour blocks for 30 days, whole weeks for a year (~52 points).
   // Each bucket keeps its average plus its high and low, so the line is smooth and the shaded band keeps the detail.
   const WEEK = 7 * 864e5;
-  const bucketFor = h => h <= 168 ? 0 : h <= 720 ? 3 * 36e5 : WEEK;
+  const DAY = 864e5;
+  const bucketFor = h => h <= 72 ? 0 : h <= 168 ? 3 * 36e5 : h <= 720 ? DAY : WEEK;
   // weeks start on Monday (1 Jan 1970 was a Thursday, hence the 3-day offset)
-  const bucketKey = (t, ms) => ms >= WEEK ? Math.floor((+t / 864e5 + 3) / 7) : ms ? Math.floor(+t / ms) : +t;
-  const bucketStart = (k, ms) => ms >= WEEK ? new Date((k * 7 - 3) * 864e5) : new Date(k * ms);
+  const bucketKey = (t, ms) => ms >= WEEK ? Math.floor((+t / 864e5 + 3) / 7) : ms === DAY ? Date.parse(ukDay.format(t)) / DAY : ms ? Math.floor(+t / ms) : +t;
+  const bucketStart = (k, ms) => ms >= WEEK ? new Date((k * 7 - 3) * 864e5) : new Date(k * ms);  // a UK day starts at its UTC midnight key
   function resample(pts, ms) {
     if (!ms || !pts.length) return pts;
     const by = new Map();
@@ -668,8 +669,8 @@ footer a { color: var(--accent); }
       return { t, v: vals.reduce((a, b) => a + b, 0) / vals.length, lo: Math.min(...vals), hi: Math.max(...vals) };
     });
   }
-  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= WEEK ? "Week of " + dayFmt.format(t) + " · weekly average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
-  const avgLabel = ms => ms >= WEEK ? "Weekly average" : ms ? "3-hour average" : "Measured";
+  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= WEEK ? "Week of " + dayFmt.format(t) + " · weekly average" : ms === DAY ? dayFmt.format(t) + " · daily average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
+  const avgLabel = ms => ms >= WEEK ? "Weekly average" : ms === DAY ? "Daily average" : ms ? "3-hour average" : "Measured";
 
   // Keep rare spikes from squashing a chart: cap the axis near the 1st/99th percentile and say so on the chart.
   function niceRound(x, span, up) {
@@ -950,7 +951,7 @@ footer a { color: var(--accent); }
     return g;
   };
   const ciColour = v => v < 40 ? "#13855a" : v < 120 ? "#4f9a2c" : v < 200 ? "#c48a00" : v < 290 ? "#d0561f" : "#b3261e";
-  const timeLabels = (pts, hours) => pts.map(p => hours >= YEAR ? dateFmt.format(p.t) : hours > 24 ? (hours > 200 ? dateFmt.format(p.t) + " " + hm(p.t) : dhm(p.t)) : hm(p.t));
+  const timeLabels = (pts, hours) => pts.map(p => hours >= 720 ? dateFmt.format(p.t) : hours > 24 ? (hours > 200 ? dateFmt.format(p.t) + " " + hm(p.t) : dhm(p.t)) : hm(p.t));
 
   const PLUGINS = [
     { id: "touchClear",
@@ -1182,7 +1183,7 @@ footer a { color: var(--accent); }
     opts.plugins.tooltip.filter = c => c.parsed.y >= 0.05;
     opts.plugins.tooltip.itemSort = (a, b) => b.parsed.y - a.parsed.y;
     opts.plugins.tooltip.footerColor = css("--ink");
-    if (S.range > 24 && !ms) opts.plugins.dayRules = { times: pts.map(p => p.t) };
+    if (S.range > 24 && ms < DAY) opts.plugins.dayRules = { times: pts.map(p => p.t) };
     mount("cHist", { type: "line", data: { labels: timeLabels(pts, S.range), datasets }, options: opts });
 
     const avg = {}; fuels.forEach(f => avg[f] = raw.reduce((a, p) => a + (p.v[f] || 0), 0) / raw.length);
@@ -1208,7 +1209,7 @@ footer a { color: var(--accent); }
     const o = opts;
     const hidden = /^(High|Low)$/;
     if (fut.length) o.plugins.nowLine = { index: n - 1, label: "NOW" };
-    if (!ms && S[style.rangeKey] > 24) o.plugins.dayRules = { times: all.map(p => p.t) };
+    if (ms < DAY && S[style.rangeKey] > 24) o.plugins.dayRules = { times: all.map(p => p.t) };
     o.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "line", padding: 14, font: { family: "Archivo", size: 12 }, filter: it => !hidden.test(it.text) } };
     o.plugins.tooltip.filter = c => c.parsed.y != null && !hidden.test(c.dataset.label) && !(c.dataset.label === "Forecast" && c.dataIndex === n - 1);
     const line = { pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.2, tension: 0.35, cubicInterpolationMode: "monotone" };
@@ -1220,7 +1221,7 @@ footer a { color: var(--accent); }
     }
     ds.push(Object.assign({ label: avgLabel(ms), data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
     if (fut.length) ds.push(Object.assign({ label: "Forecast", data: all.map((p, i) => i >= n - 1 ? (i === n - 1 ? past[n - 1].v : p.v) : null), fill: ms ? false : "origin", borderDash: [5, 4] }, line, style.fut));
-    if (lyMap) ds.push({ label: ms >= WEEK ? "Last year (weekly average)" : "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
+    if (lyMap) ds.push({ label: ms >= WEEK ? "Last year (weekly average)" : ms === DAY ? "Last year (daily average)" : "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
     if (style.fmt) robustY(o, ds.filter(d => !/^(High|Low)$/.test(d.label) || ms).flatMap(d => d.data), style.fmt);
     mount(id, { type: "line", data: { labels: timeLabels(all, S[style.rangeKey] + (fut.length ? 48 : 0)), datasets: ds }, options: o });
     return all;
