@@ -1,0 +1,1303 @@
+<title>Pylon UK Grid</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Live view of Great Britain's electricity grid: generation mix, carbon intensity, Octopus Agile prices and installed capacity.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Martian+Mono:wdth,wght@87.5,400;87.5,600;100,700&display=swap">
+<style>
+/* Layout: control-room board. Sticky status bar, a "right now" strip, then four numbered-free sections
+   (output, history, prices, capacity) laid out on a 12-col grid that collapses to one column on phones. */
+:root {
+  --bg: #eceff3;
+  --surface: #ffffff;
+  --surface-2: #e2e7ed;
+  --ink: #0f1c2a;
+  --muted: #586777;
+  --line: #d0d8e0;
+  --accent: #1d4fd6;
+  --good: #11865b;
+  --warn: #b7700b;
+  --bad: #c03a2b;
+  --c-gas: #e0682f;
+  --c-coal: #4a4f57;
+  --c-nuclear: #8b5cc6;
+  --c-wind: #2b8ad8;
+  --c-solar: #f0b400;
+  --c-hydro: #16a9a0;
+  --c-biomass: #5f9a35;
+  --c-imports: #8d99a8;
+  --c-storage: #d24d8c;
+  --c-other: #b39a6b;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a1016; --surface: #111a23; --surface-2: #1a2531; --ink: #e5ecf3; --muted: #93a3b4;
+    --line: #243241; --accent: #7aa2ff; --good: #3ccf8e; --warn: #f0a93b; --bad: #ff6b5c;
+    --c-coal: #8a909a; --c-imports: #7e8b9b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0a1016; --surface: #111a23; --surface-2: #1a2531; --ink: #e5ecf3; --muted: #93a3b4;
+  --line: #243241; --accent: #7aa2ff; --good: #3ccf8e; --warn: #f0a93b; --bad: #ff6b5c;
+  --c-coal: #8a909a; --c-imports: #7e8b9b;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 15px; line-height: 1.5;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+/* Top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand svg { width: 26px; height: 30px; color: var(--ink); flex-shrink: 0; }
+.brand b { font-family: var(--display); font-variation-settings: "wdth" 125; font-weight: 900; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+.brand small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; line-height: 1.1; }
+.chip { display: inline-flex; align-items: center; gap: 7px; font: 600 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.chip.live i { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+.chip.live { color: var(--ink); }
+.chip.example i { background: var(--warn); }
+.controls { display: flex; gap: 8px; align-items: center; }
+select, button { font: 500 13px/1 var(--body); color: var(--ink); }
+select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; max-width: 190px; }
+.btn { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+:is(button, select, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+main .wrap { display: flex; flex-direction: column; gap: 40px; padding-block: 22px 56px; }
+
+.banner { display: flex; gap: 12px; align-items: flex-start; background: color-mix(in srgb, var(--warn) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: var(--r); padding: 12px 14px; font-size: 14px; }
+.banner b { font-weight: 700; }
+.banner p { margin: 0; max-width: 90ch; }
+
+/* Section headings */
+.sec { display: flex; flex-direction: column; gap: 14px; }
+.sec-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+h2 { margin: 0; font-family: var(--display); font-variation-settings: "wdth" 118; font-weight: 800; font-size: clamp(20px, 3.2vw, 26px); letter-spacing: -0.005em; text-transform: uppercase; text-wrap: balance; }
+.sec-head p { margin: 0; color: var(--muted); font-size: 14px; max-width: 60ch; }
+h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.s12 { grid-column: span 12; } .s8 { grid-column: span 8; } .s7 { grid-column: span 7; } .s6 { grid-column: span 6; } .s5 { grid-column: span 5; } .s4 { grid-column: span 4; }
+@media (max-width: 900px) { .s8, .s7, .s6, .s5, .s4 { grid-column: span 12; } }
+
+.tag { font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; white-space: nowrap; }
+.tag.ex { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
+.note { margin: 0; font-size: 13px; color: var(--muted); max-width: 75ch; }
+
+/* Hero: right now */
+.now { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 980px) { .now { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .now .mixcard { grid-column: span 2; order: 3; } }
+@media (max-width: 620px) { .now { grid-template-columns: minmax(0, 1fr); } .now .mixcard { grid-column: auto; } }
+.big { font: 700 clamp(46px, 7vw, 68px)/0.95 var(--mono); font-variation-settings: "wdth" 87.5; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.unit { font: 500 13px/1.2 var(--mono); color: var(--muted); }
+.pill { display: inline-block; font: 700 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 6px 9px; border-radius: 999px; color: #fff; background: var(--muted); }
+.pill[data-i="very low"] { background: #13855a; } .pill[data-i="low"] { background: #4f9a2c; }
+.pill[data-i="moderate"] { background: #b98200; } .pill[data-i="high"] { background: #d0561f; } .pill[data-i="very high"] { background: #b3261e; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.trio div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trio b { font: 700 18px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.trio span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+.donut-row { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 18px; align-items: center; }
+.donut-row.tight { grid-template-columns: minmax(120px, 150px) minmax(0, 1fr); gap: 14px; }
+.donut { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; }
+.donut canvas { position: absolute; inset: 0; }
+@media (max-width: 420px) { .donut-row, .donut-row.tight { grid-template-columns: minmax(0, 1fr); } .donut { max-width: 220px; margin: 0 auto; } }
+.legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 14px; }
+.legend.col { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.lg small { font: 500 11px/1 var(--mono); color: var(--muted); width: 3.4em; text-align: right; flex-shrink: 0; }
+.split-big { font: 700 26px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.lg { display: flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; }
+.lg i { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.lg span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lg b { font: 600 13px/1 var(--mono); font-variant-numeric: tabular-nums; }
+
+.freq { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.freq-row { display: flex; justify-content: space-between; align-items: baseline; }
+.freq-row b { font: 700 20px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.scale { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--bad) 0 10%, var(--warn) 10% 30%, var(--good) 30% 70%, var(--warn) 70% 90%, var(--bad) 90%); opacity: .85; }
+.scale i { position: absolute; top: -5px; width: 3px; height: 18px; background: var(--ink); border-radius: 2px; transform: translateX(-50%); transition: left .5s ease; }
+.scale-labels { display: flex; justify-content: space-between; font: 500 10px/1 var(--mono); color: var(--muted); }
+
+/* Bars (HTML) */
+.bars { display: flex; flex-direction: column; gap: 9px; }
+.bar { display: grid; grid-template-columns: 112px minmax(0, 1fr) 70px; align-items: center; gap: 10px; font-size: 14px; }
+.bar .track { height: 14px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.bar b { font: 600 13px/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.div { display: flex; flex-direction: column; gap: 7px; }
+.drow { display: grid; grid-template-columns: 128px minmax(0, 1fr) 64px; align-items: center; gap: 10px; font-size: 13px; }
+.drow span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drow span small { color: var(--muted); }
+.dtrack { position: relative; height: 12px; }
+.dtrack::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+.dtrack i { position: absolute; top: 0; height: 100%; border-radius: 2px; }
+.drow b { font: 600 12px/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.axis-note { display: flex; justify-content: space-between; font: 500 10px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 0 64px 0 138px; }
+.kv { display: flex; gap: 18px; flex-wrap: wrap; }
+.kv div { display: flex; flex-direction: column; }
+.kv b { font: 700 22px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.kv span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+@media (max-width: 480px) {
+  .bar { grid-template-columns: 92px minmax(0, 1fr) 60px; }
+  .drow { grid-template-columns: 100px minmax(0, 1fr) 56px; }
+  .axis-note { padding: 0 56px 0 110px; }
+}
+
+/* Toggles */
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 7px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.chart { position: relative; height: 300px; width: 100%; }
+.chart.sm { height: 230px; }
+.chart.xs { height: 190px; }
+@media (max-width: 620px) { .chart { height: 250px; } }
+.chart canvas { display: block; }
+
+/* Prices */
+.price-now { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.stat { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.stat b { font: 700 18px/1.15 var(--mono); font-variant-numeric: tabular-nums; }
+.stat small { font-size: 12px; color: var(--muted); }
+.win { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+@media (max-width: 520px) { .win { grid-template-columns: minmax(0, 1fr); } }
+.win .stat b { font-size: 20px; }
+.price-key { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.price-key span { display: inline-flex; align-items: center; gap: 6px; }
+.price-key i { width: 10px; height: 10px; border-radius: 2px; }
+
+/* Nuclear timeline */
+.gantt { display: flex; flex-direction: column; gap: 8px; overflow-x: auto; }
+.g-row { display: grid; grid-template-columns: 132px minmax(240px, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.g-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-row > span small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.g-track { position: relative; height: 18px; background: var(--surface-2); border-radius: 3px; }
+.g-track i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--c-nuclear); }
+.g-track i.plan { background: repeating-linear-gradient(135deg, var(--c-nuclear) 0 6px, transparent 6px 10px); border: 1px solid var(--c-nuclear); }
+.g-track i.ext { background: color-mix(in srgb, var(--c-nuclear) 35%, transparent); }
+.g-axis { display: grid; grid-template-columns: 132px minmax(240px, 1fr); gap: 10px; }
+.g-ticks { display: flex; justify-content: space-between; font: 500 10px/1 var(--mono); color: var(--muted); }
+
+.flex3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 620px) { .flex3 { grid-template-columns: minmax(0, 1fr); } }
+.flex3 .stat b { font-size: 26px; }
+
+footer { border-top: 2px solid var(--ink); padding-top: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; font-size: 13px; color: var(--muted); }
+footer h3 { margin-bottom: 6px; }
+footer ul { margin: 0; padding-left: 16px; }
+footer a { color: var(--accent); }
+.loading { color: var(--muted); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="top gutter">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 26 30" aria-hidden="true"><path d="M13 1 L5 29 M13 1 L21 29 M3 8 H23 M5 14 H21 M8 8 L18 14 M18 8 L8 14 M7 21 H19 M7 21 L17 29 M19 21 L9 29" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <div><b>Pylon</b><small>Great Britain grid, live</small></div>
+    </div>
+    <span class="chip" id="status"><i></i><span id="statusText">Connecting</span></span>
+    <div class="controls">
+      <label for="region" class="sr" hidden>Agile region</label>
+      <select id="region" aria-label="Octopus Agile region"></select>
+      <button class="btn" id="refresh" type="button">Refresh</button>
+    </div>
+  </div>
+</header>
+
+<main class="gutter">
+  <div class="wrap">
+    <div class="banner" id="banner" hidden>
+      <p><b>Showing example data.</b> This preview can't reach the live feeds, so each panel marked <span class="tag ex">Example</span> is filled with a realistic simulation made in your browser. Host this page as an ordinary website and it pulls live data from Elexon, NESO's Carbon Intensity API and Octopus Energy every five minutes.</p>
+    </div>
+
+    <!-- RIGHT NOW -->
+    <section class="sec" aria-labelledby="h-now">
+      <div class="sec-head">
+        <h2 id="h-now">Right now</h2>
+        <p id="nowTime">Loading the latest half-hour…</p>
+      </div>
+      <div class="now">
+        <div class="card">
+          <div class="card-head"><h3>Carbon intensity</h3><span class="tag" id="tagCI">—</span></div>
+          <div><div class="big" id="ciVal">—</div><div class="unit">gCO₂ per kWh</div></div>
+          <div><span class="pill" id="ciIdx">—</span></div>
+          <div class="trio">
+            <div><b id="pLow">—</b><span>Low carbon</span></div>
+            <div><b id="pRen">—</b><span>Renewable</span></div>
+            <div><b id="pFos">—</b><span>Fossil</span></div>
+          </div>
+        </div>
+        <div class="card mixcard">
+          <div class="card-head"><h3>Generation mix</h3><span class="tag" id="tagMix">—</span></div>
+          <div class="donut-row">
+            <div class="donut"><canvas id="dMix" role="img" aria-label="Current generation mix"></canvas></div>
+            <div class="legend col" id="mixLegend"></div>
+          </div>
+          <p class="note">Share of GB generation this half-hour, including rooftop solar and small wind farms (NESO estimate).</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Agile price now</h3><span class="tag" id="tagAgileNow">—</span></div>
+          <div><div class="big" id="agNow">—</div><div class="unit" id="agNowUnit">p per kWh, inc VAT</div></div>
+          <div class="kv"><div><b id="agNext">—</b><span id="agNextLbl">Next slot</span></div></div>
+          <div class="freq">
+            <div class="freq-row"><h3>Grid frequency</h3><b id="fq">—</b></div>
+            <div class="scale" aria-hidden="true"><i id="fqMark" style="left:50%"></i></div>
+            <div class="scale-labels"><span>49.8</span><span>50.0 Hz</span><span>50.2</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card s4">
+          <div class="card-head"><h3>Generated vs imported</h3><span class="tag" id="tagImp">—</span></div>
+          <div class="donut-row tight">
+            <div class="donut"><canvas id="dImp" role="img" aria-label="Share of supply generated in Great Britain versus imported"></canvas></div>
+            <div class="legend col" id="impLegend"></div>
+          </div>
+          <p class="note" id="impNote">Share of all electricity supplied this half-hour.</p>
+        </div>
+        <div class="card s4">
+          <div class="card-head"><h3>Clean vs fossil</h3><span class="tag" id="tagClean">—</span></div>
+          <div class="donut-row tight">
+            <div class="donut"><canvas id="dClean" role="img" aria-label="Renewable, nuclear, fossil and imported shares"></canvas></div>
+            <div class="legend col" id="cleanLegend"></div>
+          </div>
+          <p class="note">Renewables are wind, solar, hydro and biomass.</p>
+        </div>
+        <div class="card s4">
+          <div class="card-head"><h3>Inside the renewables</h3><span class="tag" id="tagRen">—</span></div>
+          <div class="donut-row tight">
+            <div class="donut"><canvas id="dRen" role="img" aria-label="Breakdown of renewable generation"></canvas></div>
+            <div class="legend col" id="renLegend"></div>
+          </div>
+          <p class="note">Each source's share of renewable output right now.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- OUTPUT -->
+    <section class="sec" aria-labelledby="h-out">
+      <div class="sec-head">
+        <h2 id="h-out">Transmission output</h2>
+        <p>Metered output from large power stations and interconnectors, updated every five minutes by Elexon.</p>
+      </div>
+      <div class="grid">
+        <div class="card s7">
+          <div class="card-head"><h3>By fuel</h3><span class="tag" id="tagInst">—</span></div>
+          <div class="kv">
+            <div><b id="instTotal">—</b><span>Total GW</span></div>
+            <div><b id="instImp">—</b><span>Net imports GW</span></div>
+            <div><b id="instTime">—</b><span>Reading</span></div>
+          </div>
+          <div class="bars" id="instBars"></div>
+          <p class="note">Solar is missing here: almost all of it connects to local networks that this meter doesn't see.</p>
+        </div>
+        <div class="card s5">
+          <div class="card-head"><h3>Interconnectors</h3><span class="tag" id="tagIc">—</span></div>
+          <div class="axis-note"><span>← Exporting</span><span>Importing →</span></div>
+          <div class="div" id="icRows"></div>
+          <p class="note">Flows on each cable to and from Europe and Ireland, in MW.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="sec" aria-labelledby="h-hist">
+      <div class="sec-head">
+        <h2 id="h-hist">Where it came from</h2>
+        <div class="tools">
+          <div class="seg" role="group" aria-label="Time range">
+            <button type="button" data-range="24" aria-pressed="true">24 h</button>
+            <button type="button" data-range="72" aria-pressed="false">3 days</button>
+            <button type="button" data-range="168" aria-pressed="false">7 days</button>
+          </div>
+          <div class="seg" role="group" aria-label="Units">
+            <button type="button" data-unit="pct" aria-pressed="true">Share %</button>
+            <button type="button" data-unit="gw" aria-pressed="false">Output GW</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card s12">
+          <div class="card-head"><h3 id="histTitle">Generation share, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
+          <div class="chart"><canvas id="cHist" aria-label="Generation mix over time"></canvas></div>
+          <p class="note" id="histNote">Half-hourly shares from NESO's Carbon Intensity API, including embedded solar and wind.</p>
+        </div>
+        <div class="card s8">
+          <div class="card-head"><h3>Carbon intensity, past 24 h and next 48 h</h3><span class="tag" id="tagCIh">—</span></div>
+          <div class="chart sm"><canvas id="cCI" aria-label="Carbon intensity history and forecast"></canvas></div>
+        </div>
+        <div class="card s4">
+          <div class="card-head"><h3>Period summary</h3><span class="tag" id="tagSum">—</span></div>
+          <div class="donut" style="max-width:200px;margin:0 auto"><canvas id="dSum" role="img" aria-label="Average generation mix for the selected period"></canvas></div>
+          <div class="legend col" id="sumLegend"></div>
+          <p class="note" id="sumNote">Average share over the selected period.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICES -->
+    <section class="sec" aria-labelledby="h-price">
+      <div class="sec-head">
+        <h2 id="h-price">Prices</h2>
+        <p id="regionLabel">Octopus Agile, London region. Change region at the top of the page.</p>
+      </div>
+      <div class="grid">
+        <div class="card s8">
+          <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3><span class="tag" id="tagAgile">—</span></div>
+          <div class="stats">
+            <div class="stat"><span>Now</span><b id="sNow">—</b><small id="sNowT">—</small></div>
+            <div class="stat"><span>Lowest ahead</span><b id="sMin">—</b><small id="sMinT">—</small></div>
+            <div class="stat"><span>Highest ahead</span><b id="sMax">—</b><small id="sMaxT">—</small></div>
+            <div class="stat"><span>Average ahead</span><b id="sAvg">—</b><small id="sAvgT">—</small></div>
+          </div>
+          <div class="chart"><canvas id="cAgile" aria-label="Agile prices by half hour"></canvas></div>
+          <div class="price-key">
+            <span><i style="background:var(--c-hydro)"></i>Under 0p (you're paid)</span>
+            <span><i style="background:var(--good)"></i>0–15p</span>
+            <span><i style="background:var(--c-solar)"></i>15–25p</span>
+            <span><i style="background:var(--c-gas)"></i>25–35p</span>
+            <span><i style="background:var(--bad)"></i>35p and up</span>
+          </div>
+          <p class="note">Tomorrow's rates appear after Octopus publishes them, usually around 4pm.</p>
+        </div>
+        <div class="card s4">
+          <div class="card-head"><h3>Best time to plug in</h3></div>
+          <label for="dur" class="note">How long will it run?</label>
+          <select id="dur">
+            <option value="2">1 hour</option>
+            <option value="4" selected>2 hours</option>
+            <option value="6">3 hours</option>
+            <option value="8">4 hours</option>
+          </select>
+          <div class="win">
+            <div class="stat"><span>Cheapest</span><b id="wCheap">—</b><small id="wCheapV">—</small></div>
+            <div class="stat"><span>Greenest</span><b id="wGreen">—</b><small id="wGreenV">—</small></div>
+          </div>
+          <p class="note">Searches the Agile rates and NESO's 48-hour carbon forecast for the lowest average window. Good for washing machines, dishwashers and EV charging.</p>
+        </div>
+        <div class="card s12">
+          <div class="card-head"><h3>Wholesale price, last 7 days</h3><span class="tag" id="tagMid">—</span></div>
+          <div class="chart sm"><canvas id="cMid" aria-label="Wholesale market index price"></canvas></div>
+          <p class="note">Market Index Price from Elexon, in £ per MWh (divide by 10 for pence per kWh). Agile tracks this day-ahead price, plus a peak-time charge between 4pm and 7pm.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CAPACITY -->
+    <section class="sec" aria-labelledby="h-cap">
+      <div class="sec-head">
+        <h2 id="h-cap">Installed capacity</h2>
+        <p>What the UK has built, from government statistics. These figures change slowly, a few times a year.</p>
+      </div>
+      <div class="grid">
+        <div class="card s6">
+          <div class="card-head"><h3>UK generating capacity, 2025</h3><span class="tag">DESNZ</span></div>
+          <div class="kv"><div><b>112.1</b><span>GW in total</span></div><div><b>65.3</b><span>GW renewable</span></div></div>
+          <div class="donut-row">
+            <div class="donut"><canvas id="dCap" role="img" aria-label="Installed capacity by technology"></canvas></div>
+            <div class="legend col" id="capLegend"></div>
+          </div>
+          <p class="note">Gas, nuclear, solar, pumped storage and totals from UK Energy in Brief 2026. Wind split from DESNZ figures via Wikipedia. "Bio, hydro, other renewables" and "Other" are the remainders of those totals.</p>
+        </div>
+        <div class="card s6">
+          <div class="card-head"><h3>Flexibility</h3><span class="tag">2025–26</span></div>
+          <div class="flex3">
+            <div class="stat"><span>Batteries</span><b>8.5 GW</b><small>14.4 GWh, end Q3 2026</small></div>
+            <div class="stat"><span>Interconnectors</span><b>10.3 GW</b><small>10 cables to 6 countries</small></div>
+            <div class="stat"><span>Pumped hydro</span><b>2.7 GW</b><small>Dinorwig, Cruachan and others</small></div>
+          </div>
+          <div class="donut-row tight">
+            <div class="donut"><canvas id="dIcCap" role="img" aria-label="Interconnector capacity by country"></canvas></div>
+            <div class="legend col" id="icCapLegend"></div>
+          </div>
+          <p class="note">Interconnector capacity by country, MW, from operator ratings.</p>
+        </div>
+        <div class="card s6">
+          <div class="card-head"><h3>Wind capacity, 2010–2025</h3><span class="tag">GW</span></div>
+          <div class="kv"><div><b>33.0</b><span>GW total</span></div><div><b>16.6</b><span>Offshore</span></div><div><b>16.4</b><span>Onshore</span></div></div>
+          <div class="chart sm"><canvas id="cWind" aria-label="Wind capacity over time"></canvas></div>
+          <p class="note">Offshore overtook onshore in 2025 for the first time.</p>
+        </div>
+        <div class="card s6">
+          <div class="card-head"><h3>Solar capacity, 2010–2025</h3><span class="tag">GW</span></div>
+          <div class="kv"><div><b>21.5</b><span>GW end of 2025</span></div><div><b>+3.6</b><span>Added in 2025</span></div></div>
+          <div class="chart sm"><canvas id="cSolar" aria-label="Solar capacity over time"></canvas></div>
+          <p class="note">2025 was a record year, led by rooftop systems on homes.</p>
+        </div>
+        <div class="card s12">
+          <div class="card-head"><h3>Nuclear fleet outlook</h3><span class="tag">5 stations · 6.0 GW</span></div>
+          <div class="gantt" id="gantt"></div>
+          <div class="price-key">
+            <span><i style="background:var(--c-nuclear)"></i>Expected to generate</span>
+            <span><i style="background:color-mix(in srgb, var(--c-nuclear) 35%, transparent)"></i>Extension EDF hopes for</span>
+            <span><i style="background:repeating-linear-gradient(135deg, var(--c-nuclear) 0 4px, transparent 4px 7px)"></i>Under construction</span>
+          </div>
+          <p class="note">End dates from EDF's fleet updates. EDF hopes to run Heysham 1 and Hartlepool to 2030 and is seeking 20 more years for Sizewell B. Hinkley Point C (3.2 GW) is expected around 2030.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>
+        <h3>Live data</h3>
+        <ul>
+          <li><a href="https://carbonintensity.org.uk/" target="_blank" rel="noopener">NESO Carbon Intensity API</a> (CC BY 4.0)</li>
+          <li><a href="https://developer.data.elexon.co.uk/" target="_blank" rel="noopener">Elexon Insights Solution</a></li>
+          <li><a href="https://developer.octopus.energy/docs/api/" target="_blank" rel="noopener">Octopus Energy API</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Capacity data</h3>
+        <ul>
+          <li><a href="https://www.gov.uk/government/statistics/uk-energy-in-brief-2026" target="_blank" rel="noopener">UK Energy in Brief 2026</a> (DESNZ)</li>
+          <li><a href="https://en.wikipedia.org/wiki/Wind_power_in_the_United_Kingdom" target="_blank" rel="noopener">Wind</a> and <a href="https://en.wikipedia.org/wiki/Solar_power_in_the_United_Kingdom" target="_blank" rel="noopener">solar</a> series (DESNZ via Wikipedia)</li>
+          <li><a href="https://www.edfenergy.com/media-centre/2025-fleet-update" target="_blank" rel="noopener">EDF fleet update</a>, <a href="https://modoenergy.com/research/en/gb-bess-buildout-q3-2026-great-britain-battery-energy-storage-record-quarter-coalburn" target="_blank" rel="noopener">Modo Energy</a> (batteries)</li>
+        </ul>
+      </div>
+      <div>
+        <h3>About</h3>
+        <p style="margin:0">Refreshes every five minutes. Times are UK local. Not affiliated with NESO, Elexon or Octopus Energy.</p>
+      </div>
+    </footer>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+(function () {
+  "use strict";
+  const API = {
+    ci: "https://api.carbonintensity.org.uk",
+    elx: "https://data.elexon.co.uk/bmrs/api/v1",
+    oct: "https://api.octopus.energy/v1"
+  };
+  const FALLBACK_AGILE = "AGILE-24-10-01";
+  const REGIONS = { A: "East England", B: "East Midlands", C: "London", D: "Merseyside & N Wales", E: "West Midlands", F: "North East England", G: "North West England", H: "Southern England", J: "South East England", K: "South Wales", L: "South West England", M: "Yorkshire", N: "South Scotland", P: "North Scotland" };
+  const ORDER = ["nuclear", "biomass", "hydro", "wind", "solar", "imports", "storage", "other", "gas", "coal"];
+  const LABEL = { nuclear: "Nuclear", biomass: "Biomass", hydro: "Hydro", wind: "Wind", solar: "Solar", imports: "Imports", storage: "Pumped storage", other: "Other", gas: "Gas", coal: "Coal" };
+  const RENEW = ["wind", "solar", "hydro", "biomass"];
+  const IC = {
+    INTFR: ["IFA", "France"], INTIFA2: ["IFA2", "France"], INTELEC: ["ElecLink", "France"], INTNED: ["BritNed", "Netherlands"],
+    INTNEM: ["Nemo", "Belgium"], INTNSL: ["North Sea Link", "Norway"], INTVKL: ["Viking Link", "Denmark"],
+    INTIRL: ["Moyle", "N Ireland"], INTEW: ["East-West", "Ireland"], INTGRNL: ["Greenlink", "Ireland"]
+  };
+  const IC_CAP = { INTFR: 2000, INTIFA2: 1000, INTELEC: 1000, INTNED: 1000, INTNEM: 1000, INTNSL: 1400, INTVKL: 1400, INTIRL: 500, INTEW: 500, INTGRNL: 500 };
+
+  const $ = id => document.getElementById(id);
+  const S = { range: 24, unit: "pct", region: "C", live: {}, data: {}, charts: {} };
+  try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
+
+  /* ---------- helpers ---------- */
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const col = f => css("--c-" + f);
+  const HH = 1800000;
+  const slot = d => new Date(Math.floor(d.getTime() / HH) * HH);
+  const ciISO = d => d.toISOString().slice(0, 16) + "Z";
+  const tFmt = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  const dFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
+  const hm = d => tFmt.format(d);
+  const dhm = d => dFmt.format(d);
+  const p1 = n => (Math.round(n * 10) / 10).toFixed(1);
+  const pence = n => p1(n) + "p";
+
+  async function getJSON(url, ms = 15000) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctl.signal });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return await r.json();
+    } finally { clearTimeout(t); }
+  }
+  const rows = j => Array.isArray(j) ? j : (j && Array.isArray(j.data) ? j.data : []);
+
+  /* ---------- example model (used only when a live feed can't load) ---------- */
+  function model(t) {
+    const h = (t.getUTCHours() + t.getUTCMinutes() / 60);
+    const day = t.getTime() / 864e5;
+    const demand = 23 + 7 * Math.exp(-((h - 17.5) ** 2) / 5) + 6 * Math.max(0, Math.sin(Math.PI * (h - 6) / 15));
+    const solar = Math.max(0, Math.sin(Math.PI * (h - 7.4) / 9.1)) * (4.2 + 1.4 * Math.sin(day * 2.3));
+    const wind = Math.max(1.6, 10.5 + 6 * Math.sin(day * 1.25 + 0.4) + 2.4 * Math.sin(day * 5.3));
+    const nuclear = 4.3, biomass = h > 6 && h < 22 ? 2.5 : 1.3, hydro = 0.5 + 0.15 * Math.sin(day);
+    const imports = 3.8 + 2 * Math.sin(day * 0.9 + 1), other = 0.35, storage = (h > 16.5 && h < 19.5) ? 1.3 : 0.05;
+    const gas = Math.max(1.3, demand - (solar + wind + nuclear + biomass + hydro + imports + other + storage));
+    return { nuclear, biomass, hydro, wind, solar, imports, storage, other, gas, coal: 0, demand };
+  }
+  const total = m => ORDER.reduce((a, f) => a + (m[f] || 0), 0);
+  const toPct = m => { const T = total(m); const o = {}; ORDER.forEach(f => o[f] = (m[f] || 0) / T * 100); return o; };
+  const modelCI = m => Math.round((m.gas * 394 + m.other * 300 + m.imports * 180 + m.biomass * 120) / total(m));
+  const modelWholesale = (t, m) => 48 + 85 * (m.gas / m.demand) - Math.max(0, m.wind - 14) * 9 + 6 * Math.sin(t.getTime() / 3e6);
+  function modelAgile(t) {
+    const m = model(t); const h = new Date(t).getUTCHours();
+    const w = modelWholesale(t, m) / 10;
+    return Math.min(100, (2.2 * w + (h >= 16 && h < 19 ? 12.5 : 0)) * 1.05);
+  }
+  function ciIndex(v) { return v < 40 ? "very low" : v < 120 ? "low" : v < 200 ? "moderate" : v < 290 ? "high" : "very high"; }
+
+  /* ---------- loaders: each returns {live, ...} ---------- */
+  async function loadNow() {
+    const now = new Date();
+    const out = {};
+    const [ci, gen, inst, fq] = await Promise.allSettled([
+      getJSON(API.ci + "/intensity"),
+      getJSON(API.ci + "/generation"),
+      getJSON(`${API.elx}/datasets/FUELINST?publishDateTimeFrom=${new Date(now - 40 * 6e4).toISOString()}&publishDateTimeTo=${now.toISOString()}&format=json`),
+      getJSON(`${API.elx}/system/frequency?from=${new Date(now - 15 * 6e4).toISOString()}&to=${now.toISOString()}&format=json`)
+    ]);
+    const m = model(now);
+
+    if (ci.status === "fulfilled" && rows(ci.value)[0]) {
+      const d = rows(ci.value)[0];
+      out.ci = { value: d.intensity.actual ?? d.intensity.forecast, index: d.intensity.index, from: new Date(d.from), live: true };
+    } else {
+      const v = modelCI(m); out.ci = { value: v, index: ciIndex(v), from: slot(now), live: false };
+    }
+
+    let mix = null;
+    if (gen.status === "fulfilled") {
+      const d = Array.isArray(gen.value.data) ? gen.value.data[0] : gen.value.data;
+      if (d && d.generationmix) {
+        mix = {}; ORDER.forEach(f => mix[f] = 0);
+        d.generationmix.forEach(g => { if (g.fuel in mix) mix[g.fuel] = g.perc; else mix.other += g.perc; });
+        out.mix = { pct: mix, from: new Date(d.from), live: true };
+      }
+    }
+    if (!out.mix) out.mix = { pct: toPct(m), from: slot(now), live: false };
+
+    const instRows = inst.status === "fulfilled" ? rows(inst.value) : [];
+    if (instRows.length) {
+      const latest = instRows.reduce((a, r) => r.startTime > a ? r.startTime : a, "");
+      const cur = instRows.filter(r => r.startTime === latest);
+      const fuels = {}, ics = {};
+      cur.forEach(r => {
+        const g = r.generation / 1000;
+        if (IC[r.fuelType]) ics[r.fuelType] = r.generation;
+        else {
+          const k = mapElexon(r.fuelType);
+          fuels[k] = (fuels[k] || 0) + g;
+        }
+      });
+      out.inst = { fuels, ics, time: new Date(latest), live: true };
+    } else {
+      const ics = {}; const share = { INTFR: .22, INTIFA2: .1, INTELEC: .1, INTNED: .1, INTNEM: .1, INTNSL: .18, INTVKL: .14, INTIRL: -.04, INTEW: -.05, INTGRNL: .05 };
+      Object.keys(share).forEach(k => ics[k] = Math.round(Math.max(-IC_CAP[k], Math.min(IC_CAP[k], m.imports * 1000 * share[k] * (1 + 0.3 * Math.sin(k.length + now / 4e6))))));
+      out.inst = { fuels: { gas: m.gas, nuclear: m.nuclear, wind: m.wind * 0.72, biomass: m.biomass, hydro: m.hydro * 0.7, storage: m.storage, other: m.other, coal: 0 }, ics, time: new Date(Math.floor(now / 3e5) * 3e5), live: false };
+    }
+
+    const fqRows = fq.status === "fulfilled" ? rows(fq.value) : [];
+    if (fqRows.length) {
+      const last = fqRows.reduce((a, r) => (!a || r.measurementTime > a.measurementTime) ? r : a, null);
+      out.freq = { value: last.frequency, live: true };
+    } else out.freq = { value: 50 + 0.045 * Math.sin(now / 9e3) - 0.02 * Math.sin(now / 3.1e4), live: false };
+    return out;
+  }
+
+  function mapElexon(code) {
+    switch (code) {
+      case "CCGT": case "OCGT": return "gas";
+      case "NUCLEAR": return "nuclear";
+      case "WIND": return "wind";
+      case "BIOMASS": return "biomass";
+      case "NPSHYD": return "hydro";
+      case "PS": return "storage";
+      case "COAL": return "coal";
+      default: return "other";
+    }
+  }
+
+  async function loadHistory(hours) {
+    const now = new Date();
+    const from = new Date(now - hours * 36e5);
+    const out = {};
+
+    if (S.unit === "pct") {
+      try {
+        const j = await getJSON(`${API.ci}/generation/${ciISO(from)}/${ciISO(now)}`);
+        const pts = rows(j).filter(d => d.generationmix).map(d => {
+          const o = {}; ORDER.forEach(f => o[f] = 0);
+          d.generationmix.forEach(g => { if (g.fuel in o) o[g.fuel] = g.perc; else o.other += g.perc; });
+          return { t: new Date(d.from), v: o };
+        });
+        if (!pts.length) throw new Error("empty");
+        out.mix = { pts, live: true };
+      } catch (e) {
+        out.mix = { pts: synthSeries(from, now, m => toPct(m)), live: false };
+      }
+    } else {
+      try {
+        const dFrom = new Date(from - 864e5).toISOString().slice(0, 10);
+        const dTo = new Date(+now + 864e5).toISOString().slice(0, 10);
+        const j = await getJSON(`${API.elx}/datasets/FUELHH?settlementDateFrom=${dFrom}&settlementDateTo=${dTo}&format=json`, 25000);
+        const by = new Map();
+        rows(j).forEach(r => {
+          const t = r.startTime; if (new Date(t) < from) return;
+          if (!by.has(t)) { const o = {}; ORDER.forEach(f => o[f] = 0); by.set(t, o); }
+          const o = by.get(t);
+          const k = IC[r.fuelType] ? "imports" : mapElexon(r.fuelType);
+          o[k] += r.generation / 1000;
+        });
+        const pts = [...by.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([t, v]) => { v.imports = Math.max(0, v.imports); v.storage = Math.max(0, v.storage); return { t: new Date(t), v }; });
+        if (!pts.length) throw new Error("empty");
+        out.mix = { pts, live: true };
+      } catch (e) {
+        out.mix = { pts: synthSeries(from, now, m => ({ ...m, solar: 0, wind: m.wind * 0.72, hydro: m.hydro * 0.7 })), live: false };
+      }
+    }
+
+    // carbon intensity: past 24h actuals + 48h forecast
+    const from24 = new Date(now - 24 * 36e5);
+    const [hist, fwd] = await Promise.allSettled([
+      getJSON(`${API.ci}/intensity/${ciISO(from24)}/${ciISO(now)}`),
+      getJSON(`${API.ci}/intensity/${ciISO(now)}/fw48h`)
+    ]);
+    let past = hist.status === "fulfilled" ? rows(hist.value).map(d => ({ t: new Date(d.from), v: d.intensity.actual ?? d.intensity.forecast })) : [];
+    let fut = fwd.status === "fulfilled" ? rows(fwd.value).map(d => ({ t: new Date(d.from), v: d.intensity.forecast })) : [];
+    const ciLive = past.length > 0 && fut.length > 0;
+    if (!past.length) past = synthSeries(from24, now, m => modelCI(m));
+    if (!fut.length) fut = synthSeries(slot(now), new Date(+now + 48 * 36e5), m => modelCI(m));
+    out.ci = { past, fut, live: ciLive };
+    return out;
+  }
+
+  function synthSeries(from, to, fn) {
+    const pts = [];
+    for (let t = slot(from).getTime(); t <= to.getTime(); t += HH) pts.push({ t: new Date(t), v: fn(model(new Date(t))) });
+    return pts;
+  }
+
+  async function findAgileProduct() {
+    if (S.data.agileProduct) return S.data.agileProduct;
+    try {
+      const j = await getJSON(`${API.oct}/products/?brand=OCTOPUS_ENERGY&is_variable=true&page_size=100`);
+      const list = (j.results || []).filter(p => /^AGILE-/.test(p.code) && !/OUTGOING|FLEX/i.test(p.code) && p.direction !== "EXPORT" && !p.available_to);
+      list.sort((a, b) => (a.available_from < b.available_from ? 1 : -1));
+      S.data.agileProduct = list.length ? list[0].code : FALLBACK_AGILE;
+    } catch (e) { S.data.agileProduct = FALLBACK_AGILE; }
+    return S.data.agileProduct;
+  }
+
+  async function loadPrices() {
+    const now = new Date();
+    const out = {};
+    const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
+    const end = new Date(+dayStart + 2 * 864e5);
+    try {
+      const prod = await findAgileProduct();
+      const tariff = `E-1R-${prod}-${S.region}`;
+      const j = await getJSON(`${API.oct}/products/${prod}/electricity-tariffs/${tariff}/standard-unit-rates/?period_from=${dayStart.toISOString()}&period_to=${end.toISOString()}&page_size=300`);
+      const pts = (j.results || []).filter(r => !r.payment_method || r.payment_method === "DIRECT_DEBIT")
+        .map(r => ({ t: new Date(r.valid_from), end: new Date(r.valid_to), v: r.value_inc_vat }))
+        .sort((a, b) => a.t - b.t);
+      if (!pts.length) throw new Error("empty");
+      out.agile = { pts, live: true, product: prod };
+    } catch (e) {
+      const last = now.getHours() >= 16 ? end : new Date(+dayStart + 864e5 - 0);
+      const pts = [];
+      for (let t = dayStart.getTime(); t < last.getTime(); t += HH) pts.push({ t: new Date(t), end: new Date(t + HH), v: modelAgile(new Date(t)) });
+      out.agile = { pts, live: false, product: FALLBACK_AGILE };
+    }
+    try {
+      const from = new Date(now - 7 * 864e5);
+      const j = await getJSON(`${API.elx}/balancing/pricing/market-index?from=${from.toISOString()}&to=${now.toISOString()}&dataProviders=APXMIDP&format=json`, 20000);
+      const pts = rows(j).filter(r => r.volume > 0).map(r => ({ t: new Date(r.startTime), v: r.price })).sort((a, b) => a.t - b.t);
+      if (!pts.length) throw new Error("empty");
+      out.mid = { pts, live: true };
+    } catch (e) {
+      out.mid = { pts: synthSeries(new Date(now - 7 * 864e5), now, m => m), live: false };
+      out.mid.pts = out.mid.pts.map(p => ({ t: p.t, v: Math.round(modelWholesale(p.t, p.v) * 100) / 100 }));
+    }
+    return out;
+  }
+
+  /* ---------- rendering ---------- */
+  function setTag(id, live, liveText) {
+    const el = $(id); if (!el) return;
+    el.textContent = live ? (liveText || "Live") : "Example";
+    el.classList.toggle("ex", !live);
+  }
+
+  function renderNow(n) {
+    $("ciVal").textContent = Math.round(n.ci.value);
+    const idx = (n.ci.index || ciIndex(n.ci.value)).toLowerCase();
+    $("ciIdx").textContent = idx; $("ciIdx").dataset.i = idx;
+    setTag("tagCI", n.ci.live);
+    $("nowTime").textContent = `Half-hour starting ${hm(n.mix.from)} · ${dayFmt.format(n.mix.from)}`;
+
+    const p = n.mix.pct;
+    const ren = RENEW.reduce((a, f) => a + p[f], 0);
+    $("pRen").textContent = Math.round(ren) + "%";
+    $("pLow").textContent = Math.round(ren + p.nuclear) + "%";
+    $("pFos").textContent = Math.round(p.gas + p.coal) + "%";
+
+    const pctF = v => p1(v) + "%";
+    const sorted = ORDER.filter(f => p[f] > 0.05).sort((a, b) => p[b] - p[a]);
+    const mixItems = sorted.map(f => ({ label: LABEL[f], value: p[f], color: col(f) }));
+    donut("dMix", mixItems, { big: Math.round(ren + p.nuclear) + "%", small: "low carbon" }, pctF);
+    legend("mixLegend", mixItems, pctF);
+    $("dMix").setAttribute("aria-label", "Current generation mix: " + sorted.map(f => `${LABEL[f]} ${Math.round(p[f])}%`).join(", "));
+    setTag("tagMix", n.mix.live);
+
+    // generated in GB vs imported
+    const imp = p.imports, home = 100 - imp;
+    const impItems = [{ label: "Generated in GB", value: home, color: css("--accent") }, { label: "Imported", value: imp, color: col("imports") }];
+    donut("dImp", impItems, { big: Math.round(home) + "%", small: "home-grown" }, pctF);
+    legend("impLegend", impItems, pctF);
+    setTag("tagImp", n.mix.live);
+
+    // renewables / nuclear / fossil / imports
+    const fossil = p.gas + p.coal, rest = Math.max(0, 100 - ren - p.nuclear - fossil - imp);
+    const cleanItems = [
+      { label: "Renewables", value: ren, color: col("biomass") }, { label: "Nuclear", value: p.nuclear, color: col("nuclear") },
+      { label: "Fossil", value: fossil, color: col("gas") }, { label: "Imports", value: imp, color: col("imports") },
+      { label: "Other", value: rest, color: col("other") }
+    ].filter(i => i.value > 0.05);
+    donut("dClean", cleanItems, { big: Math.round(fossil) + "%", small: "fossil" }, pctF);
+    legend("cleanLegend", cleanItems, pctF);
+    setTag("tagClean", n.mix.live);
+
+    const renItems = RENEW.map(f => ({ label: LABEL[f], value: ren ? p[f] / ren * 100 : 0, color: col(f) })).filter(i => i.value > 0.05).sort((a, b) => b.value - a.value);
+    donut("dRen", renItems, { big: Math.round(ren) + "%", small: "of all power" }, pctF);
+    legend("renLegend", renItems, pctF);
+    setTag("tagRen", n.mix.live);
+
+    // instantaneous transmission bars
+    const fuels = n.inst.fuels;
+    const keys = ["gas", "wind", "nuclear", "biomass", "storage", "hydro", "other", "coal"].filter(k => (fuels[k] || 0) > 0.005 || k === "coal");
+    const icNet = Object.values(n.inst.ics).reduce((a, v) => a + v, 0) / 1000;
+    const tot = keys.reduce((a, k) => a + Math.max(0, fuels[k] || 0), 0) + Math.max(0, icNet);
+    const max = Math.max(...keys.map(k => fuels[k] || 0), icNet, 1);
+    const barsData = keys.map(k => [LABEL[k], fuels[k] || 0, col(k)]);
+    barsData.push(["Imports (net)", icNet, col("imports")]);
+    barsData.sort((a, b) => b[1] - a[1]);
+    $("instBars").innerHTML = barsData.map(([l, v, c]) => `<div class="bar"><span>${l}</span><div class="track"><div class="fill" style="width:${Math.max(0, v) / max * 100}%;background:${c}"></div></div><b>${p1(v)} GW</b></div>`).join("");
+    $("instTotal").textContent = p1(tot);
+    $("instImp").textContent = (icNet >= 0 ? "+" : "") + p1(icNet);
+    $("instTime").textContent = hm(n.inst.time);
+    setTag("tagInst", n.inst.live);
+    const meterImp = tot > 0 ? Math.max(0, icNet) / tot * 100 : 0;
+    $("impNote").textContent = `Share of all power supplied this half-hour. On Elexon's 5-minute transmission meter, imports are ${p1(meterImp)}% (${p1(Math.max(0, icNet))} of ${p1(tot)} GW).`;
+
+    const icKeys = Object.keys(IC).filter(k => k in n.inst.ics);
+    const icMax = Math.max(1000, ...icKeys.map(k => Math.abs(n.inst.ics[k])));
+    $("icRows").innerHTML = icKeys.sort((a, b) => n.inst.ics[b] - n.inst.ics[a]).map(k => {
+      const v = n.inst.ics[k]; const w = Math.abs(v) / icMax * 50;
+      const style = v >= 0 ? `left:50%;width:${w}%;background:${col("imports")}` : `right:50%;width:${w}%;background:${col("storage")}`;
+      return `<div class="drow"><span>${IC[k][0]} <small>${IC[k][1]}</small></span><div class="dtrack"><i style="${style}"></i></div><b>${v > 0 ? "+" : ""}${Math.round(v)}</b></div>`;
+    }).join("");
+    setTag("tagIc", n.inst.live);
+
+    const f = n.freq.value;
+    $("fq").textContent = f.toFixed(3) + " Hz";
+    $("fqMark").style.left = Math.max(0, Math.min(100, (f - 49.8) / 0.4 * 100)) + "%";
+  }
+
+  function baseOpts(extra) {
+    const ink = css("--muted"), line = css("--line");
+    return Object.assign({
+      responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink"), borderColor: line, borderWidth: 1, padding: 10, boxPadding: 4, titleFont: { family: "Archivo", weight: "700" }, bodyFont: { family: "Martian Mono", size: 11 } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: ink, maxRotation: 0, autoSkip: true, maxTicksLimit: 8, font: { family: "Martian Mono", size: 10 } }, border: { color: line } },
+        y: { grid: { color: line }, ticks: { color: ink, font: { family: "Martian Mono", size: 10 } }, border: { display: false } }
+      }
+    }, extra || {});
+  }
+  function mount(id, cfg) {
+    if (typeof Chart === "undefined") return;
+    if (S.charts[id]) S.charts[id].destroy();
+    cfg.options = cfg.options || {};
+    cfg.options.events = ["pointermove", "pointerdown", "pointerup", "pointerleave"];
+    const canvas = $(id);
+    if (!canvas.$wired) {
+      canvas.$wired = true;
+      canvas.addEventListener("pointercancel", () => clearChart(S.charts[id]));
+    }
+    S.charts[id] = new Chart(canvas, cfg);
+  }
+
+  // Clears a chart's tooltip and highlight
+  function clearChart(c) {
+    if (!c || !c.tooltip) return;
+    if (!c.getActiveElements().length && !c.tooltip.getActiveElements().length) return;
+    c.setActiveElements([]);
+    c.tooltip.setActiveElements([], { x: 0, y: 0 });
+    c.update("none");
+  }
+  function clearAllCharts(except) { Object.values(S.charts).forEach(c => { if (c !== except) clearChart(c); }); }
+
+  // Fades a single colour from top to bottom of the plot area
+  const grad = (hex, top = "55", bottom = "00") => ctx => {
+    const a = ctx.chart.chartArea;
+    if (!a) return hex + top;
+    const g = ctx.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+    g.addColorStop(0, hex + top); g.addColorStop(1, hex + bottom);
+    return g;
+  };
+  const ciColour = v => v < 40 ? "#13855a" : v < 120 ? "#4f9a2c" : v < 200 ? "#c48a00" : v < 290 ? "#d0561f" : "#b3261e";
+
+  const PLUGINS = [
+    { // tooltips go away after a tap, when the finger lifts, or when the pointer leaves
+      id: "touchClear",
+      afterEvent(chart, args) {
+        const t = args.event.type, ne = args.event.native;
+        const touch = !!(ne && ne.pointerType && ne.pointerType !== "mouse");
+        if (t === "mousedown" || (t === "mousemove" && touch)) { clearTimeout(chart.$tc); clearAllCharts(chart); }
+        else if (touch && (t === "mouseup" || t === "mouseout")) {
+          clearTimeout(chart.$tc);
+          chart.$tc = setTimeout(() => clearChart(chart), 1800);
+        }
+        else if (t === "mouseout") { clearTimeout(chart.$tc); clearChart(chart); }
+      }
+    },
+    { // vertical guide under the pointer on line charts
+      id: "crosshair",
+      afterDatasetsDraw(chart) {
+        if (chart.config.type !== "line") return;
+        const act = chart.tooltip && chart.tooltip.getActiveElements();
+        if (!act || !act.length) return;
+        const x = act[0].element.x, a = chart.chartArea, ctx = chart.ctx;
+        ctx.save(); ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke(); ctx.restore();
+      }
+    },
+    { // "Now" marker at a category index
+      id: "nowLine",
+      afterDatasetsDraw(chart, _a, o) {
+        if (!o || o.index == null || o.index < 0) return;
+        const x = chart.scales.x.getPixelForValue(o.index), a = chart.chartArea, ctx = chart.ctx;
+        if (x < a.left || x > a.right) return;
+        ctx.save(); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x, a.top + 14); ctx.lineTo(x, a.bottom); ctx.stroke();
+        ctx.fillStyle = css("--ink"); ctx.font = "600 10px 'Martian Mono', monospace"; ctx.textAlign = "center";
+        ctx.fillText(o.label || "NOW", x, a.top + 9); ctx.restore();
+      }
+    },
+    { // horizontal reference line, e.g. an average
+      id: "hLine",
+      afterDatasetsDraw(chart, _a, o) {
+        if (!o || o.value == null) return;
+        const y = chart.scales.y.getPixelForValue(o.value), a = chart.chartArea, ctx = chart.ctx;
+        ctx.save(); ctx.strokeStyle = css("--accent"); ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+        ctx.beginPath(); ctx.moveTo(a.left, y); ctx.lineTo(a.right, y); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = css("--accent"); ctx.font = "600 10px 'Martian Mono', monospace"; ctx.textAlign = "right";
+        ctx.fillText(o.label, a.right - 4, y - 5); ctx.restore();
+      }
+    },
+    { // faint vertical rules at midnight on multi-day charts
+      id: "dayRules",
+      beforeDatasetsDraw(chart, _a, o) {
+        if (!o || !o.times) return;
+        const a = chart.chartArea, ctx = chart.ctx;
+        ctx.save(); ctx.strokeStyle = css("--line"); ctx.lineWidth = 1;
+        o.times.forEach((t, i) => {
+          if (i && t.getHours() === 0 && t.getMinutes() === 0) {
+            const x = chart.scales.x.getPixelForValue(i);
+            ctx.beginPath(); ctx.moveTo(x, a.top); ctx.lineTo(x, a.bottom); ctx.stroke();
+          }
+        });
+        ctx.restore();
+      }
+    },
+    { // two-line label in the middle of a doughnut
+      id: "center",
+      afterDraw(chart, _a, o) {
+        if (chart.config.type !== "doughnut" || !o || !o.big) return;
+        const m = chart.getDatasetMeta(0).data[0]; if (!m) return;
+        const { x, y } = m, r = m.innerRadius, ctx = chart.ctx;
+        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = css("--ink");
+        ctx.font = `700 ${Math.max(14, Math.round(r * 0.48))}px 'Martian Mono', monospace`;
+        ctx.fillText(o.big, x, y - r * 0.12);
+        ctx.fillStyle = css("--muted");
+        ctx.font = `600 ${Math.max(9, Math.round(r * 0.17))}px Archivo, sans-serif`;
+        ctx.fillText(String(o.small || "").toUpperCase(), x, y + r * 0.3);
+        ctx.restore();
+      }
+    }
+  ];
+  if (typeof Chart !== "undefined") PLUGINS.forEach(p => Chart.register(p));
+
+  function legend(id, items, fmt, sub) {
+    $(id).innerHTML = items.map(it => `<div class="lg"><i style="background:${it.color}"></i><span>${it.label}</span><b>${fmt(it.value)}</b>${sub ? `<small>${sub(it)}</small>` : ""}</div>`).join("");
+  }
+  function donut(id, items, center, fmt) {
+    const surf = css("--surface");
+    mount(id, {
+      type: "doughnut",
+      data: { labels: items.map(i => i.label), datasets: [{ data: items.map(i => +i.value.toFixed(2)), backgroundColor: items.map(i => i.color), borderColor: surf, borderWidth: 2, hoverOffset: 6, borderRadius: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: "64%", layout: { padding: 6 },
+        animation: { duration: 400 },
+        plugins: {
+          legend: { display: false }, center,
+          tooltip: { backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink"), borderColor: css("--line"), borderWidth: 1, padding: 10, boxPadding: 4, bodyFont: { family: "Martian Mono", size: 11 }, callbacks: { label: c => ` ${c.label}: ${fmt(c.parsed)}` } }
+        }
+      }
+    });
+  }
+  window.addEventListener("scroll", () => clearAllCharts(), { passive: true });
+  document.addEventListener("pointerdown", e => {
+    if (!(e.target && e.target.closest && e.target.closest("canvas"))) clearAllCharts();
+  }, { passive: true });
+
+  function renderHistory(h) {
+    const pts = h.mix.pts;
+    const pct = S.unit === "pct";
+    const longRange = S.range > 24;
+    const unitTxt = pct ? "%" : " GW";
+    const labels = pts.map(p => longRange ? dhm(p.t) : hm(p.t));
+    const fuels = ORDER.filter(f => pts.some(p => p.v[f] > 0.01));
+    const surf = css("--surface");
+    const datasets = fuels.map(f => ({
+      label: LABEL[f], data: pts.map(p => +(p.v[f] || 0).toFixed(2)),
+      backgroundColor: col(f) + "e0", borderColor: surf, borderWidth: 0.6, fill: true,
+      pointRadius: 0, pointHoverRadius: 3, pointHoverBackgroundColor: col(f), pointHoverBorderColor: surf,
+      tension: 0.3, stack: "s"
+    }));
+    const opts = baseOpts();
+    opts.scales.y.stacked = true;
+    opts.scales.y.beginAtZero = true;
+    if (pct) opts.scales.y.max = 100;
+    opts.scales.y.ticks.callback = v => v + unitTxt;
+    opts.scales.x.ticks.maxTicksLimit = longRange ? 7 : 9;
+    opts.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
+    opts.plugins.tooltip.callbacks = {
+      title: c => dhm(pts[c[0].dataIndex].t),
+      label: c => c.parsed.y >= 0.05 ? ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}${unitTxt}` : null,
+      footer: c => pct ? "" : `Total: ${c.reduce((a, x) => a + x.parsed.y, 0).toFixed(1)} GW`
+    };
+    opts.plugins.tooltip.filter = c => c.parsed.y >= 0.05;
+    opts.plugins.tooltip.itemSort = (a, b) => b.parsed.y - a.parsed.y;
+    opts.plugins.tooltip.footerFont = { family: "Martian Mono", size: 11, weight: "600" };
+    opts.plugins.tooltip.footerColor = css("--ink");
+    if (longRange) opts.plugins.dayRules = { times: pts.map(p => p.t) };
+    mount("cHist", { type: "line", data: { labels, datasets }, options: opts });
+
+    const rangeTxt = S.range === 24 ? "last 24 hours" : S.range === 72 ? "last 3 days" : "last 7 days";
+    $("histTitle").textContent = (pct ? "Generation share, " : "Transmission output, ") + rangeTxt;
+    $("histNote").textContent = pct
+      ? "Half-hourly shares from NESO's Carbon Intensity API, including embedded solar and wind. Tap or hover for the full breakdown."
+      : "Half-hourly output from Elexon (FUELHH). Transmission-connected plant only, so solar and small wind farms aren't shown and imports are net.";
+    setTag("tagHist", h.mix.live);
+
+    // period summary doughnut
+    const avg = {}; fuels.forEach(f => avg[f] = pts.reduce((a, p) => a + (p.v[f] || 0), 0) / pts.length);
+    const sum = fuels.reduce((a, f) => a + avg[f], 0) || 1;
+    const sumItems = fuels.slice().sort((a, b) => avg[b] - avg[a]).map(f => ({ label: LABEL[f], value: avg[f] / sum * 100, color: col(f) }));
+    const renShare = RENEW.reduce((a, f) => a + (avg[f] || 0), 0) / sum * 100;
+    const impShare = (avg.imports || 0) / sum * 100;
+    donut("dSum", sumItems, { big: Math.round(renShare) + "%", small: "renewable" }, v => p1(v) + "%");
+    legend("sumLegend", sumItems, v => p1(v) + "%");
+    $("sumNote").textContent = `Average over the ${rangeTxt}. Generated in GB: ${p1(100 - impShare)}%. Imported: ${p1(impShare)}%.`;
+    setTag("tagSum", h.mix.live);
+
+    // carbon intensity: colour follows the intensity band
+    const lastPast = h.ci.past.length ? h.ci.past[h.ci.past.length - 1].t : 0;
+    const all = [...h.ci.past, ...h.ci.fut.filter(p => p.t > lastPast)];
+    const nPast = h.ci.past.length;
+    const o2 = baseOpts();
+    o2.scales.y.beginAtZero = true;
+    o2.scales.y.ticks.callback = v => v + " g";
+    o2.scales.x.ticks.maxTicksLimit = 7;
+    o2.plugins.dayRules = { times: all.map(p => p.t) };
+    o2.plugins.nowLine = { index: nPast - 1, label: "NOW" };
+    o2.plugins.tooltip.callbacks = {
+      title: c => dhm(all[c[0].dataIndex].t),
+      label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y)} g · ${ciIndex(c.parsed.y)}`
+    };
+    o2.plugins.tooltip.filter = (c) => !(c.datasetIndex === 1 && c.dataIndex === nPast - 1);
+    const seg = { borderColor: c => ciColour((c.p0.parsed.y + c.p1.parsed.y) / 2) };
+    const ink = css("--ink");
+    mount("cCI", {
+      type: "line",
+      data: {
+        labels: all.map(p => dhm(p.t)),
+        datasets: [
+          { label: "Measured", data: all.map((p, i) => i < nPast ? p.v : null), segment: seg, borderColor: ink, backgroundColor: grad(css("--muted"), "30", "00"), fill: "origin", pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5, tension: 0.35 },
+          { label: "Forecast", data: all.map((p, i) => i >= nPast - 1 ? (i === nPast - 1 ? h.ci.past[nPast - 1].v : p.v) : null), segment: { ...seg, borderDash: [5, 4] }, borderColor: ink, backgroundColor: grad(css("--muted"), "14", "00"), fill: "origin", pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5, tension: 0.35 }
+        ]
+      },
+      options: o2
+    });
+    setTag("tagCIh", h.ci.live);
+    S.data.ciForecast = h.ci.fut;
+  }
+
+  function priceColour(v) {
+    if (v < 0) return col("hydro");
+    if (v < 15) return css("--good");
+    if (v < 25) return col("solar");
+    if (v < 35) return col("gas");
+    return css("--bad");
+  }
+
+  function renderPrices(pr) {
+    const now = new Date();
+    const pts = pr.agile.pts;
+    const curIdx = pts.findIndex(p => p.t <= now && p.end > now);
+    const cur = pts[curIdx];
+    const ahead = pts.filter(p => p.end > now);
+
+    $("agNow").textContent = cur ? p1(cur.v) : "—";
+    const next = curIdx >= 0 ? pts[curIdx + 1] : null;
+    $("agNext").textContent = next ? pence(next.v) : "—";
+    $("agNextLbl").textContent = next ? `From ${hm(next.t)}` : "Next slot";
+    setTag("tagAgileNow", pr.agile.live, REGIONS[S.region]);
+    setTag("tagAgile", pr.agile.live, pr.agile.product);
+
+    $("sNow").textContent = cur ? pence(cur.v) : "—";
+    $("sNowT").textContent = cur ? `${hm(cur.t)}–${hm(cur.end)}` : "—";
+    let av = null;
+    if (ahead.length) {
+      const mn = ahead.reduce((a, p) => p.v < a.v ? p : a);
+      const mxp = ahead.reduce((a, p) => p.v > a.v ? p : a);
+      av = ahead.reduce((a, p) => a + p.v, 0) / ahead.length;
+      $("sMin").textContent = pence(mn.v); $("sMinT").textContent = dhm(mn.t);
+      $("sMax").textContent = pence(mxp.v); $("sMaxT").textContent = dhm(mxp.t);
+      $("sAvg").textContent = pence(av); $("sAvgT").textContent = `${ahead.length} slots to ${hm(ahead[ahead.length - 1].end)}`;
+    }
+
+    // mark the cheapest window for the chosen run time
+    const best = bestWindow(pts, +$("dur").value, now);
+    const inBest = p => best && p.t >= best.start && p.t < best.end;
+
+    const labels = pts.map(p => (p.t.getHours() === 0 && p.t.getMinutes() === 0 ? dayFmt.format(p.t) : hm(p.t)));
+    const o = baseOpts();
+    o.scales.y.ticks.callback = v => v + "p";
+    o.scales.x.ticks.maxTicksLimit = 9;
+    o.plugins.nowLine = { index: curIdx, label: "NOW" };
+    if (av != null) o.plugins.hLine = { value: av, label: `AVG AHEAD ${p1(av)}p` };
+    o.plugins.dayRules = { times: pts.map(p => p.t) };
+    o.plugins.tooltip.callbacks = {
+      title: c => `${dhm(pts[c[0].dataIndex].t)}–${hm(pts[c[0].dataIndex].end)}`,
+      label: c => ` ${p1(c.parsed.y)}p per kWh`,
+      afterLabel: c => inBest(pts[c.dataIndex]) ? " Part of the cheapest window" : ""
+    };
+    const accent = css("--accent");
+    mount("cAgile", {
+      type: "bar",
+      data: { labels, datasets: [{
+        data: pts.map(p => +p.v.toFixed(2)),
+        backgroundColor: pts.map(p => priceColour(p.v) + (p.end <= now ? "55" : "")),
+        hoverBackgroundColor: pts.map(p => priceColour(p.v)),
+        borderColor: pts.map(p => inBest(p) ? accent : "transparent"),
+        borderWidth: pts.map(p => inBest(p) ? 2 : 0),
+        borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", barPercentage: 0.86, categoryPercentage: 1
+      }] },
+      options: o
+    });
+
+    renderWindows();
+
+    const mid = pr.mid.pts;
+    const midAvg = mid.reduce((a, p) => a + p.v, 0) / (mid.length || 1);
+    const o2 = baseOpts();
+    o2.scales.y.ticks.callback = v => "£" + v;
+    o2.scales.x.ticks.maxTicksLimit = 7;
+    o2.plugins.dayRules = { times: mid.map(p => p.t) };
+    o2.plugins.hLine = { value: midAvg, label: `7-DAY AVG £${midAvg.toFixed(0)}` };
+    o2.plugins.tooltip.callbacks = { title: c => dhm(mid[c[0].dataIndex].t), label: c => ` £${c.parsed.y.toFixed(2)}/MWh · ${(c.parsed.y / 10).toFixed(1)}p/kWh` };
+    mount("cMid", { type: "line", data: { labels: mid.map(p => dhm(p.t)), datasets: [{ data: mid.map(p => p.v), borderColor: accent, backgroundColor: grad(accent, "40", "00"), fill: "origin", pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: accent, borderWidth: 1.8, tension: 0.25 }] }, options: o2 });
+    setTag("tagMid", pr.mid.live);
+  }
+
+  function bestWindow(pts, k, now) {
+    const fut = pts.filter(p => p.t >= slot(now));
+    let best = null;
+    for (let i = 0; i + k <= fut.length; i++) {
+      let s = 0, ok = true;
+      for (let j = 0; j < k; j++) { s += fut[i + j].v; if (j && fut[i + j].t - fut[i + j - 1].t !== HH) ok = false; }
+      if (ok && (!best || s / k < best.avg)) best = { start: fut[i].t, end: new Date(+fut[i + k - 1].t + HH), avg: s / k };
+    }
+    return best;
+  }
+  function renderWindows() {
+    const k = +$("dur").value, now = new Date();
+    const pr = S.data.prices, ci = S.data.ciForecast;
+    if (pr) {
+      const b = bestWindow(pr.agile.pts, k, now);
+      $("wCheap").textContent = b ? `${hm(b.start)}–${hm(b.end)}` : "—";
+      $("wCheapV").textContent = b ? `${dayFmt.format(b.start).split(" ")[0]} · avg ${pence(b.avg)} · outlined on the chart` : "Not enough rates yet";
+    }
+    if (ci) {
+      const b = bestWindow(ci, k, now);
+      $("wGreen").textContent = b ? `${hm(b.start)}–${hm(b.end)}` : "—";
+      $("wGreenV").textContent = b ? `${dayFmt.format(b.start).split(" ")[0]} · avg ${Math.round(b.avg)} g` : "—";
+    }
+  }
+
+  /* ---------- static capacity charts ---------- */
+  const YEARS = Array.from({ length: 16 }, (_, i) => 2010 + i);
+  const ONSHORE = [4080, 4758, 6035, 7586, 8573, 9212, 10833, 12597, 13425, 13998, 14075, 14493, 14840, 15424, 16166, 16438];
+  const OFFSHORE = [1341, 1838, 2995, 3696, 4501, 5094, 5923, 6958, 8151, 9856, 10351, 11176, 13768, 14653, 15836, 16570];
+  const SOLAR = [95, 965, 1736, 2822, 5378, 9118, 11562, 12690, 12992, 13265, 13579, 13965, 14660, 16238, 17848, 21481];
+
+  function renderCapacity() {
+    const cap = [
+      ["Wind", 33.0, "wind"], ["Gas", 32.4, "gas"], ["Solar", 21.9, "solar"],
+      ["Bio, hydro, other renewables", 10.4, "biomass"], ["Nuclear", 5.9, "nuclear"],
+      ["Other", 5.8, "other"], ["Pumped storage", 2.7, "storage"]
+    ].map(c => ({ label: c[0], value: c[1], color: col(c[2]) }));
+    donut("dCap", cap, { big: "112.1", small: "GW total" }, v => v.toFixed(1) + " GW");
+    legend("capLegend", cap, v => v.toFixed(1), it => Math.round(it.value / 112.1 * 100) + "%");
+
+    const base = col("imports");
+    const shades = ["", "d9", "b3", "8c", "73", "59", "40"];
+    const ic = [["France", 4000], ["Norway", 1400], ["Denmark", 1400], ["Ireland", 1000], ["Netherlands", 1000], ["Belgium", 1000], ["N Ireland", 500]]
+      .map((c, i) => ({ label: c[0], value: c[1], color: i === 0 ? css("--accent") : base + shades[i] }));
+    donut("dIcCap", ic, { big: "10.3", small: "GW" }, v => Math.round(v).toLocaleString() + " MW");
+    legend("icCapLegend", ic, v => Math.round(v).toLocaleString(), () => "MW");
+
+    const windCol = col("wind");
+    const o1 = baseOpts();
+    o1.scales.y.stacked = true;
+    o1.scales.y.beginAtZero = true;
+    o1.scales.y.ticks.callback = v => v + " GW";
+    o1.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
+    o1.plugins.tooltip.callbacks = {
+      label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)} GW`,
+      footer: c => `Total: ${c.reduce((a, x) => a + x.parsed.y, 0).toFixed(1)} GW`
+    };
+    o1.plugins.tooltip.footerColor = css("--ink");
+    mount("cWind", {
+      type: "line",
+      data: { labels: YEARS, datasets: [
+        { label: "Onshore", data: ONSHORE.map(v => v / 1000), backgroundColor: windCol + "66", borderColor: windCol + "aa", fill: true, pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.3, stack: "w" },
+        { label: "Offshore", data: OFFSHORE.map(v => v / 1000), backgroundColor: windCol + "dd", borderColor: windCol, fill: "-1", pointRadius: 0, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.3, stack: "w" }
+      ] },
+      options: o1
+    });
+
+    const sc = col("solar");
+    const o2 = baseOpts();
+    o2.scales.y.beginAtZero = true;
+    o2.scales.y.ticks.callback = v => v + " GW";
+    o2.interaction = { mode: "index", intersect: false };
+    o2.plugins.tooltip.callbacks = {
+      label: c => ` ${c.parsed.y.toFixed(1)} GW installed`,
+      afterLabel: c => c.dataIndex ? ` +${((SOLAR[c.dataIndex] - SOLAR[c.dataIndex - 1]) / 1000).toFixed(1)} GW that year` : ""
+    };
+    mount("cSolar", { type: "bar", data: { labels: YEARS, datasets: [{ label: "Solar", data: SOLAR.map(v => v / 1000), backgroundColor: SOLAR.map((v, i) => i === SOLAR.length - 1 ? sc : sc + "88"), hoverBackgroundColor: sc, borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", barPercentage: 0.78 }] }, options: o2 });
+  }
+
+  function renderGantt() {
+    const start = 2026, end = 2037, span = end - start;
+    const pos = y => ((y - start) / span) * 100;
+    const fleet = [
+      { n: "Hartlepool", mw: 1185, to: 2028.25, ext: 2030 },
+      { n: "Heysham 1", mw: 1222, to: 2028.25, ext: 2030 },
+      { n: "Heysham 2", mw: 1230, to: 2030.25 },
+      { n: "Torness", mw: 1205, to: 2030.25 },
+      { n: "Sizewell B", mw: 1195, to: 2035, ext: 2037 },
+      { n: "Hinkley Point C", mw: 3200, from: 2030, to: 2037, plan: true }
+    ];
+    const ticks = []; for (let y = start; y <= end; y += 2) ticks.push(`<span>${y}</span>`);
+    $("gantt").innerHTML = fleet.map(f => {
+      const a = pos(f.from || start), b = pos(Math.min(f.to, end));
+      let bars = `<i class="${f.plan ? "plan" : ""}" style="left:${a}%;width:${b - a}%"></i>`;
+      if (f.ext) bars += `<i class="ext" style="left:${b}%;width:${pos(f.ext) - b}%"></i>`;
+      return `<div class="g-row"><span>${f.n} <small>${(f.mw / 1000).toFixed(2)} GW</small></span><div class="g-track">${bars}</div></div>`;
+    }).join("") + `<div class="g-axis"><span></span><div class="g-ticks">${ticks.join("")}</div></div>`;
+  }
+
+  /* ---------- orchestration ---------- */
+  function updateStatus() {
+    const v = Object.values(S.live);
+    const liveCount = v.filter(Boolean).length;
+    const chip = $("status");
+    chip.classList.remove("live", "example");
+    if (!v.length) { $("statusText").textContent = "Connecting"; return; }
+    if (liveCount === v.length) { chip.classList.add("live"); $("statusText").textContent = "Live · " + hm(new Date()); }
+    else if (liveCount === 0) { chip.classList.add("example"); $("statusText").textContent = "Example data"; }
+    else { chip.classList.add("live"); $("statusText").textContent = "Partly live · " + hm(new Date()); }
+    $("banner").hidden = liveCount === v.length;
+  }
+
+  async function refreshNow() {
+    const n = await loadNow();
+    S.data.now = n;
+    S.live.ci = n.ci.live; S.live.mix = n.mix.live; S.live.inst = n.inst.live; S.live.freq = n.freq.live;
+    renderNow(n); updateStatus();
+  }
+  async function refreshHistory() {
+    const h = await loadHistory(S.range);
+    S.data.hist = h; S.live.hist = h.mix.live; S.live.cih = h.ci.live;
+    renderHistory(h); renderWindows(); updateStatus();
+  }
+  async function refreshPrices() {
+    const pr = await loadPrices();
+    S.data.prices = pr; S.live.agile = pr.agile.live; S.live.mid = pr.mid.live;
+    renderPrices(pr); updateStatus();
+  }
+  function refreshAll() { return Promise.allSettled([refreshNow(), refreshHistory(), refreshPrices()]); }
+
+  function rerenderAll() {
+    if (S.data.now) renderNow(S.data.now);
+    if (S.data.hist) renderHistory(S.data.hist);
+    if (S.data.prices) renderPrices(S.data.prices);
+    renderCapacity();
+  }
+
+  // controls
+  const sel = $("region");
+  sel.innerHTML = Object.entries(REGIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+  sel.value = S.region;
+  const setRegionLabel = () => $("regionLabel").textContent = `Octopus Agile, ${REGIONS[S.region]} region. Change region at the top of the page.`;
+  setRegionLabel();
+  sel.addEventListener("change", () => {
+    S.region = sel.value; setRegionLabel();
+    try { localStorage.setItem("pylon-region", S.region); } catch (e) {}
+    refreshPrices();
+  });
+  $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; refreshAll(); });
+  $("dur").addEventListener("change", () => { if (S.data.prices) renderPrices(S.data.prices); else renderWindows(); });
+  document.querySelectorAll("[data-range]").forEach(b => b.addEventListener("click", () => {
+    S.range = +b.dataset.range;
+    document.querySelectorAll("[data-range]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    refreshHistory();
+  }));
+  document.querySelectorAll("[data-unit]").forEach(b => b.addEventListener("click", () => {
+    S.unit = b.dataset.unit;
+    document.querySelectorAll("[data-unit]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    refreshHistory();
+  }));
+
+  // theme changes → redraw charts with new token colours
+  try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerenderAll); } catch (e) {}
+  new MutationObserver(rerenderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  if (typeof Chart !== "undefined") {
+    Chart.defaults.font.family = "Archivo, system-ui, sans-serif";
+  }
+  renderGantt();
+  renderCapacity();
+  refreshAll();
+  setInterval(refreshAll, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshNow(); });
+})();
+</script>
