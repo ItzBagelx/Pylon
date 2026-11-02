@@ -1,3 +1,11 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a1016" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<style>html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}</style>
 <title>Pylon UK Grid</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Live view of Great Britain's electricity grid: generation mix, carbon intensity, Octopus Agile prices and installed capacity.">
@@ -47,6 +55,7 @@
   color-scheme: dark;
 }
 
+[hidden] { display: none !important; }
 * { box-sizing: border-box; }
 body {
   background: var(--bg); color: var(--ink);
@@ -209,6 +218,9 @@ footer a { color: var(--accent); }
 .loading { color: var(--muted); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
+</head>
+<body>
+
 
 <header class="top gutter">
   <div class="wrap">
@@ -1301,3 +1313,6 @@ footer a { color: var(--accent); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshNow(); });
 })();
 </script>
+
+</body>
+</html>
