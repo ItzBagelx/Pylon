@@ -646,7 +646,17 @@ footer a { color: var(--accent); }
       return { t, v: vals.reduce((a, b) => a + b, 0) / vals.length, lo: Math.min(...vals), hi: Math.max(...vals) };
     });
   }
-  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= 864e5 ? dayFmt.format(t) + " · daily average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
+  // centred rolling mean (7 days for a year) so the long-range line is smooth; the high-low band keeps the detail
+  function roll(pts, w) {
+    const half = Math.floor(w / 2);
+    return pts.map((p, i) => {
+      const win = pts.slice(Math.max(0, i - half), i + half + 1);
+      if (typeof p.v === "object") { const v = {}; Object.keys(p.v).forEach(f => v[f] = win.reduce((a, q) => a + (q.v[f] || 0), 0) / win.length); return Object.assign({}, p, { v }); }
+      return Object.assign({}, p, { v: win.reduce((a, q) => a + q.v, 0) / win.length });
+    });
+  }
+  const smooth = (pts, ms) => ms >= 864e5 ? roll(pts, 7) : pts;
+  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= 864e5 ? dayFmt.format(t) + " · 7-day average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
   const LY = 364 * 864e5; // 52 weeks, so weekdays line up
   const ago = d => new Date(+d - LY);
   const mean = pts => pts.reduce((a, p) => a + p.v, 0) / pts.length;
@@ -938,7 +948,8 @@ footer a { color: var(--accent); }
         if (x < a.left || x > a.right) return;
         ctx.save(); ctx.strokeStyle = css("--ink"); ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(x, a.top + 14); ctx.lineTo(x, a.bottom); ctx.stroke();
-        ctx.fillStyle = css("--ink"); ctx.font = "600 10px 'Martian Mono', monospace"; ctx.textAlign = "center";
+        ctx.fillStyle = css("--ink"); ctx.font = "600 10px 'Martian Mono', monospace";
+        ctx.textAlign = x > a.right - 20 ? "right" : x < a.left + 20 ? "left" : "center";
         ctx.fillText(o.label || "NOW", x, a.top + 9); ctx.restore();
       } },
     { id: "hLine",
@@ -1109,7 +1120,7 @@ footer a { color: var(--accent); }
     if (!pts) { emptyChart("cHist"); return; }
     const ms = bucketFor(S.range);
     const raw = pts;
-    pts = resample(raw, ms);
+    pts = smooth(resample(raw, ms), ms);
     const unitTxt = pct ? "%" : " GW";
     const fuels = ORDER.filter(f => pts.some(p => p.v[f] > 0.01));
     const surf = css("--surface");
@@ -1149,9 +1160,9 @@ footer a { color: var(--accent); }
   function lineWithForecast(id, past, fut, opts, style) {
     const ms = style.ms || 0;
     const key = p => ms >= 864e5 ? ukDay.format(p.t) : ms ? Math.floor(+p.t / ms) : +p.t;
-    const ly = style.ly && style.ly.length ? resample(style.ly.map(p => ({ t: new Date(+p.t + LY), v: p.v })), ms) : null;
+    const ly = style.ly && style.ly.length ? smooth(resample(style.ly.map(p => ({ t: new Date(+p.t + LY), v: p.v })), ms), ms) : null;
     const lyMap = ly ? new Map(ly.map(p => [key(p), p.v])) : null;
-    past = resample(past, ms); fut = resample(fut || [], ms);
+    past = smooth(resample(past, ms), ms); fut = resample(fut || [], ms);
     const lastT = past.length ? past[past.length - 1].t : 0;
     const all = [...past, ...fut.filter(p => p.t > lastT)];
     const n = past.length;
@@ -1165,12 +1176,12 @@ footer a { color: var(--accent); }
     const ds = [];
     if (ms) {
       const band = style.band || css("--muted") + "2e";
-      ds.push({ label: "High", data: all.map((p, i) => i < n ? p.hi : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: "+1", backgroundColor: band, tension: 0.35, cubicInterpolationMode: "monotone" });
+      ds.push({ label: "High", data: all.map((p, i) => i < n ? p.hi : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: "+1", backgroundColor: band, borderColor: band, tension: 0.35, cubicInterpolationMode: "monotone" });
       ds.push({ label: "Low", data: all.map((p, i) => i < n ? p.lo : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0.35, cubicInterpolationMode: "monotone" });
     }
-    ds.push(Object.assign({ label: ms ? "Average" : "Measured", data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
+    ds.push(Object.assign({ label: ms >= 864e5 ? "7-day average" : ms ? "3-hour average" : "Measured", data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
     if (fut.length) ds.push(Object.assign({ label: "Forecast", data: all.map((p, i) => i >= n - 1 ? (i === n - 1 ? past[n - 1].v : p.v) : null), fill: ms ? false : "origin", borderDash: [5, 4] }, line, style.fut));
-    if (lyMap) ds.push({ label: "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
+    if (lyMap) ds.push({ label: ms >= 864e5 ? "Last year (7-day average)" : "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
     mount(id, { type: "line", data: { labels: timeLabels(all, S[style.rangeKey] + (fut.length ? 48 : 0)), datasets: ds }, options: o });
     return all;
   }
