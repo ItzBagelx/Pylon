@@ -168,6 +168,8 @@ h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-tr
 /* Toggles */
 .seg { display: inline-flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; }
 .seg button { border: 0; background: transparent; padding: 7px 11px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.seg button:disabled { opacity: .35; cursor: not-allowed; }
+.seg { flex-wrap: wrap; }
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .tools { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -208,6 +210,14 @@ h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-tr
 .head-l p { margin: 0; color: var(--muted); font-size: 14px; }
 .stats.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .card-head .tools { align-items: center; }
+.yoy-wrap { overflow-x: auto; }
+.yoy { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 14px; }
+.yoy th { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.yoy td { padding: 8px; border-bottom: 1px solid var(--line); text-align: right; font: 500 13px/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.yoy th:first-child, .yoy td:first-child { text-align: left; font-family: var(--body); font-size: 14px; }
+.yoy td:first-child i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.yoy .grp { border-left: 1px solid var(--line); }
+.good { color: var(--good); } .bad { color: var(--bad); }
 .flex3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 620px) { .flex3 { grid-template-columns: minmax(0, 1fr); } }
 .flex3 .stat b { font-size: 26px; }
@@ -251,6 +261,7 @@ footer a { color: var(--accent); }
             <button type="button" data-pie="24" aria-pressed="false">24 h</button>
             <button type="button" data-pie="168" aria-pressed="false">7 days</button>
             <button type="button" data-pie="720" aria-pressed="false">30 days</button>
+            <button type="button" data-pie="8760" aria-pressed="false">1 year</button>
           </div>
         </div>
       </div>
@@ -327,7 +338,7 @@ footer a { color: var(--accent); }
             <div><b id="instTime">—</b><span>Reading</span></div>
           </div>
           <div class="bars" id="instBars"></div>
-          <p class="note">Solar is missing here: almost all of it connects to local networks that this meter doesn't see.</p>
+          <p class="note" id="instNote">Solar is NESO's estimate for all GB solar panels, which this meter can't see directly. It is published about two hours behind.</p>
         </div>
         <div class="card s5">
           <div class="card-head"><h3>Interconnectors</h3><span class="tag" id="tagIc">—</span></div>
@@ -347,6 +358,8 @@ footer a { color: var(--accent); }
             <button type="button" data-range="24" aria-pressed="true">24 h</button>
             <button type="button" data-range="72" aria-pressed="false">3 days</button>
             <button type="button" data-range="168" aria-pressed="false">7 days</button>
+            <button type="button" data-range="720" aria-pressed="false">30 days</button>
+            <button type="button" data-range="8760" aria-pressed="false" title="Share % only">1 year</button>
           </div>
           <div class="seg" role="group" aria-label="Units">
             <button type="button" data-unit="pct" aria-pressed="true">Share %</button>
@@ -366,6 +379,11 @@ footer a { color: var(--accent); }
           <div class="legend col" id="sumLegend"></div>
           <p class="note" id="sumNote">Average share over the selected period.</p>
         </div>
+        <div class="card s12">
+          <div class="card-head"><h3 id="yoyTitle">Generation vs the same period a year earlier</h3><span class="tag" id="tagYoY">—</span></div>
+          <div class="yoy-wrap"><table class="yoy" id="yoyTable"></table></div>
+          <p class="note" id="yoyNote">Compared with the same days 52 weeks earlier, so weekdays line up.</p>
+        </div>
       </div>
     </section>
 
@@ -377,6 +395,7 @@ footer a { color: var(--accent); }
           <button type="button" data-dem="24" aria-pressed="false">24 h</button>
           <button type="button" data-dem="168" aria-pressed="true">7 days</button>
           <button type="button" data-dem="720" aria-pressed="false">30 days</button>
+          <button type="button" data-dem="8760" aria-pressed="false">1 year</button>
         </div>
       </div>
       <div class="grid">
@@ -394,6 +413,8 @@ footer a { color: var(--accent); }
             <div class="stat"><span>Period low</span><b id="dMin">—</b><small id="dMinT">—</small></div>
             <div class="stat"><span>Period average</span><b id="dAvg">—</b><small id="dAvgT">—</small></div>
             <div class="stat"><span>Peak vs low</span><b id="dSwing">—</b><small>Daily swing</small></div>
+            <div class="stat"><span>Average vs last year</span><b id="dYoY">—</b><small id="dYoYT">—</small></div>
+            <div class="stat"><span>Peak vs last year</span><b id="dPkYoY">—</b><small id="dPkYoYT">—</small></div>
           </div>
         </div>
       </div>
@@ -445,9 +466,10 @@ footer a { color: var(--accent); }
               <button type="button" data-mid="24" aria-pressed="false">24 h</button>
               <button type="button" data-mid="168" aria-pressed="true">7 days</button>
               <button type="button" data-mid="720" aria-pressed="false">30 days</button>
+          <button type="button" data-mid="8760" aria-pressed="false">1 year</button>
             </div><span class="tag" id="tagMid">—</span></div>
           </div>
-          <div class="kv"><div><b id="mNow">—</b><span>Latest £/MWh</span></div><div><b id="mAvg">—</b><span>Average</span></div><div><b id="mMax">—</b><span>Highest</span></div><div><b id="mMin">—</b><span>Lowest</span></div></div>
+          <div class="kv"><div><b id="mNow">—</b><span>Latest £/MWh</span></div><div><b id="mAvg">—</b><span>Average</span></div><div><b id="mMax">—</b><span>Highest</span></div><div><b id="mMin">—</b><span>Lowest</span></div><div><b id="mYoY">—</b><span id="mYoYT">Average vs last year</span></div></div>
           <div class="chart sm"><canvas id="cMid" aria-label="Wholesale market index price"></canvas></div>
           <p class="note">Market Index Price from Elexon, in £ per MWh (divide by 10 for pence per kWh). Agile tracks this day-ahead price, plus a peak-time charge between 4pm and 7pm.</p>
         </div>
@@ -516,6 +538,7 @@ footer a { color: var(--accent); }
           <button type="button" data-ci="24" aria-pressed="true">24 h</button>
           <button type="button" data-ci="168" aria-pressed="false">7 days</button>
           <button type="button" data-ci="720" aria-pressed="false">30 days</button>
+          <button type="button" data-ci="8760" aria-pressed="false">1 year</button>
         </div>
       </div>
       <div class="grid">
@@ -531,6 +554,8 @@ footer a { color: var(--accent); }
             <div class="stat"><span>Cleanest</span><b id="cMin">—</b><small id="cMinT">—</small></div>
             <div class="stat"><span>Dirtiest</span><b id="cMax">—</b><small id="cMaxT">—</small></div>
             <div class="stat"><span>Cleanest ahead</span><b id="cFc">—</b><small id="cFcT">—</small></div>
+            <div class="stat"><span>Same period last year</span><b id="cLy">—</b><small>gCO₂/kWh average</small></div>
+            <div class="stat"><span>Change on last year</span><b id="cYoY">—</b><small id="cYoYT">—</small></div>
           </div>
           <div class="bars" id="ciBands"></div>
           <p class="note">Share of the period spent in each band.</p>
@@ -574,7 +599,7 @@ footer a { color: var(--accent); }
   };
   const FALLBACK_AGILE = "AGILE-24-10-01";
   const REGIONS = { A: "East England", B: "East Midlands", C: "London", D: "Merseyside & N Wales", E: "West Midlands", F: "North East England", G: "North West England", H: "Southern England", J: "South East England", K: "South Wales", L: "South West England", M: "Yorkshire", N: "South Scotland", P: "North Scotland" };
-  const ORDER = ["nuclear", "biomass", "hydro", "wind", "solar", "imports", "storage", "other", "gas", "coal"];
+  const ORDER = ["nuclear", "biomass", "hydro", "wind", "solar", "imports", "storage", "other", "gas"];
   const LABEL = { nuclear: "Nuclear", biomass: "Biomass", hydro: "Hydro", wind: "Wind", solar: "Solar", imports: "Imports", storage: "Pumped storage", other: "Other", gas: "Gas", coal: "Coal" };
   const RENEW = ["wind", "solar", "hydro", "biomass"];
   const IC = {
@@ -604,17 +629,49 @@ footer a { color: var(--accent); }
   const p1 = n => (Math.round(n * 10) / 10).toFixed(1);
   const pence = n => p1(n) + "p";
   const gw = mw => p1(mw / 1000) + " GW";
-  const rangeTxt = h => h <= 24 ? "last 24 hours" : h <= 72 ? "last 3 days" : h <= 168 ? "last 7 days" : "last 30 days";
+  const rangeTxt = h => h <= 24 ? "last 24 hours" : h <= 72 ? "last 3 days" : h <= 168 ? "last 7 days" : h <= 720 ? "last 30 days" : "last year";
+  const YEAR = 8760;
+  const ukDay = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London" });
+  // Long ranges are bucketed: half-hours up to 7 days, 3-hour blocks for 30 days, whole days for a year.
+  // Each bucket keeps its average plus the high and low, so the line is smooth and the band keeps the detail.
+  const bucketFor = h => h <= 168 ? 0 : h <= 720 ? 3 * 36e5 : 864e5;
+  function resample(pts, ms) {
+    if (!ms || !pts.length) return pts;
+    const by = new Map();
+    pts.forEach(p => { const k = ms >= 864e5 ? ukDay.format(p.t) : Math.floor(+p.t / ms); if (!by.has(k)) by.set(k, []); by.get(k).push(p); });
+    return [...by.values()].map(list => {
+      const t = list[0].t;
+      if (typeof list[0].v === "object") { const v = {}; Object.keys(list[0].v).forEach(f => v[f] = list.reduce((a, p) => a + (p.v[f] || 0), 0) / list.length); return { t, v }; }
+      const vals = list.map(p => p.v);
+      return { t, v: vals.reduce((a, b) => a + b, 0) / vals.length, lo: Math.min(...vals), hi: Math.max(...vals) };
+    });
+  }
+  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= 864e5 ? dayFmt.format(t) + " · daily average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
+  const LY = 364 * 864e5; // 52 weeks, so weekdays line up
+  const ago = d => new Date(+d - LY);
+  const mean = pts => pts.reduce((a, p) => a + p.v, 0) / pts.length;
+  const pctCh = (a, b) => (a / b - 1) * 100;
+  const signed = (v, dp = 1) => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(dp);
   const isMidnight = t => parseInt(ukHour.format(t), 10) % 24 === 0 && t.getUTCMinutes() === 0;
 
-  async function getJSON(url, ms = 20000) {
-    const ctl = new AbortController();
-    const t = setTimeout(() => ctl.abort(), ms);
-    try {
-      const r = await fetch(url, { signal: ctl.signal });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return await r.json();
-    } finally { clearTimeout(t); }
+  // fetch with a short-lived cache so panels sharing a window don't download it twice
+  const CACHE = new Map();
+  function getJSON(url, ms = 20000) {
+    const hit = CACHE.get(url);
+    if (hit && Date.now() - hit.at < 240000) return hit.p;
+    const p = (async () => {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), ms);
+      try {
+        const r = await fetch(url, { signal: ctl.signal });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return await r.json();
+      } finally { clearTimeout(t); }
+    })();
+    CACHE.set(url, { at: Date.now(), p });
+    p.catch(() => CACHE.delete(url));
+    if (CACHE.size > 150) CACHE.delete(CACHE.keys().next().value);
+    return p;
   }
   const rows = j => Array.isArray(j) ? j : (j && Array.isArray(j.data) ? j.data : []);
   // split [from, to] into blocks no longer than `days`
@@ -636,7 +693,6 @@ footer a { color: var(--accent); }
       case "BIOMASS": return "biomass";
       case "NPSHYD": return "hydro";
       case "PS": return "storage";
-      case "COAL": return "coal";
       default: return "other";
     }
   }
@@ -645,27 +701,35 @@ footer a { color: var(--accent); }
 
   /* ---------- data loaders: each returns data or throws ---------- */
   async function ciGenRange(from, to) {
-    const parts = await Promise.all(chunks(from, to, 14).map(([a, b]) => getJSON(`${API.ci}/generation/${ciISO(a)}/${ciISO(b)}`)));
+    const parts = await Promise.all(chunks(from, to, 30).map(([a, b]) => getJSON(`${API.ci}/generation/${ciISO(a)}/${ciISO(b)}`, 60000)));
     const pts = dedupe(parts.flatMap(rows).filter(d => d.generationmix), d => d.from)
       .map(d => ({ t: new Date(d.from), v: parseMix(d.generationmix) })).sort((a, b) => a.t - b.t);
     if (!pts.length) throw new Error("empty");
     return pts;
   }
   async function ciIntRange(from, to) {
-    const parts = await Promise.all(chunks(from, to, 14).map(([a, b]) => getJSON(`${API.ci}/intensity/${ciISO(a)}/${ciISO(b)}`)));
+    const parts = await Promise.all(chunks(from, to, 30).map(([a, b]) => getJSON(`${API.ci}/intensity/${ciISO(a)}/${ciISO(b)}`, 60000)));
     const pts = dedupe(parts.flatMap(rows), d => d.from)
       .map(d => ({ t: new Date(d.from), v: d.intensity.actual ?? d.intensity.forecast })).filter(p => p.v != null).sort((a, b) => a.t - b.t);
     if (!pts.length) throw new Error("empty");
     return pts;
   }
+  // NESO's estimate of all GB solar output (Elexon dataset AGWS), keyed by half-hour start
+  async function solarRange(from, to) {
+    const j = await getJSON(`${API.elx}/datasets/AGWS/stream?publishDateTimeFrom=${from.toISOString()}&publishDateTimeTo=${new Date(+to + 4 * 36e5).toISOString()}`, 40000);
+    const best = new Map();
+    rows(j).forEach(r => { if (r.psrType !== "Solar") return; const b = best.get(r.startTime); if (!b || r.publishTime > b.publishTime) best.set(r.startTime, r); });
+    return best;
+  }
 
   async function loadNow() {
     const now = new Date(), out = {};
-    const [ci, gen, inst, fq] = await Promise.allSettled([
+    const [ci, gen, inst, fq, sol] = await Promise.allSettled([
       getJSON(API.ci + "/intensity"),
       getJSON(API.ci + "/generation"),
       getJSON(`${API.elx}/datasets/FUELINST?publishDateTimeFrom=${new Date(now - 40 * 6e4).toISOString()}&publishDateTimeTo=${now.toISOString()}&format=json`),
-      getJSON(`${API.elx}/system/frequency?from=${new Date(now - 15 * 6e4).toISOString()}&to=${now.toISOString()}&format=json`)
+      getJSON(`${API.elx}/system/frequency?from=${new Date(now - 15 * 6e4).toISOString()}&to=${now.toISOString()}&format=json`),
+      getJSON(`${API.elx}/generation/actual/per-type/wind-and-solar?from=${new Date(now - 8 * 36e5).toISOString()}&to=${now.toISOString()}&format=json`)
     ]);
     if (ci.status === "fulfilled" && rows(ci.value)[0]) {
       const d = rows(ci.value)[0];
@@ -684,57 +748,71 @@ footer a { color: var(--accent); }
         else { const k = mapElexon(r.fuelType); fuels[k] = (fuels[k] || 0) + r.generation / 1000; }
       });
       out.inst = { fuels, ics, time: new Date(latest) };
+      const solRows = sol.status === "fulfilled" ? rows(sol.value).filter(r => r.psrType === "Solar") : [];
+      if (solRows.length) {
+        const last = solRows.reduce((a, r) => (!a || r.startTime > a.startTime) ? r : a, null);
+        fuels.solar = last.quantity / 1000;
+        out.inst.solarTime = new Date(last.startTime);
+      }
     }
     const fqRows = fq.status === "fulfilled" ? rows(fq.value) : [];
     if (fqRows.length) out.freq = fqRows.reduce((a, r) => (!a || r.measurementTime > a.measurementTime) ? r : a, null).frequency;
     return out;
   }
 
-  async function loadHistory(hours) {
-    const now = new Date(), from = new Date(now - hours * 36e5);
-    if (S.unit === "pct") return ciGenRange(from, now);
-    // FUELHH accepts at most 7 settlement days per request
-    const days = chunks(new Date(from - 864e5), new Date(+now + 864e5), 6);
-    const parts = await Promise.all(days.map(([a, b]) => getJSON(`${API.elx}/datasets/FUELHH?settlementDateFrom=${dayISO(a)}&settlementDateTo=${dayISO(new Date(b - 1))}&format=json`, 25000)));
+  // Half-hourly output by fuel in GW: Elexon FUELHH (at most 7 settlement days per request) plus the solar estimate
+  async function fuelhhPts(from, to) {
+    const days = chunks(new Date(from - 864e5), new Date(+to + 864e5), 6);
+    const [parts, solar] = await Promise.all([
+      Promise.all(days.map(([a, b]) => getJSON(`${API.elx}/datasets/FUELHH?settlementDateFrom=${dayISO(a)}&settlementDateTo=${dayISO(new Date(b - 1))}&format=json`, 30000))),
+      solarRange(from, to).catch(() => new Map())
+    ]);
     const by = new Map();
     dedupe(parts.flatMap(rows), r => r.startTime + r.fuelType).forEach(r => {
-      if (new Date(r.startTime) < from) return;
+      const t = new Date(r.startTime); if (t < from || t > to) return;
       if (!by.has(r.startTime)) { const o = {}; ORDER.forEach(f => o[f] = 0); by.set(r.startTime, o); }
-      const o = by.get(r.startTime);
-      o[IC[r.fuelType] ? "imports" : mapElexon(r.fuelType)] += r.generation / 1000;
+      by.get(r.startTime)[IC[r.fuelType] ? "imports" : mapElexon(r.fuelType)] += r.generation / 1000;
     });
-    const pts = [...by.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1)
-      .map(([t, v]) => { v.imports = Math.max(0, v.imports); v.storage = Math.max(0, v.storage); return { t: new Date(t), v }; });
+    by.forEach((o, k) => { const sv = solar.get(k); o.solar = sv ? sv.quantity / 1000 : 0; o.imports = Math.max(0, o.imports); o.storage = Math.max(0, o.storage); });
+    const pts = [...by.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([t, v]) => ({ t: new Date(t), v }));
     if (!pts.length) throw new Error("empty");
     return pts;
   }
 
+  async function loadHistory(hours) {
+    const now = new Date(), from = new Date(now - hours * 36e5);
+    return S.unit === "pct" ? ciGenRange(from, now) : fuelhhPts(from, now);
+  }
+
+  async function demandRange(from, to) {
+    const parts = await Promise.all(chunks(new Date(from - 864e5), new Date(+to + 864e5), 26).map(([a, b]) =>
+      getJSON(`${API.elx}/demand/outturn?settlementDateFrom=${dayISO(a)}&settlementDateTo=${dayISO(new Date(b - 1))}&format=json`, 30000)));
+    return dedupe(parts.flatMap(rows), r => r.startTime).map(r => ({ t: new Date(r.startTime), v: r.initialDemandOutturn }))
+      .filter(p => p.t >= from && p.t <= to && p.v != null).sort((a, b) => a.t - b.t);
+  }
   async function loadDemand(hours) {
     const now = new Date(), from = new Date(now - hours * 36e5);
-    const [past, fc] = await Promise.allSettled([
-      Promise.all(chunks(new Date(from - 864e5), new Date(+now + 864e5), 14).map(([a, b]) =>
-        getJSON(`${API.elx}/demand/outturn?settlementDateFrom=${dayISO(a)}&settlementDateTo=${dayISO(new Date(b - 1))}&format=json`))),
-      getJSON(`${API.elx}/forecast/demand/day-ahead/latest?from=${now.toISOString()}&to=${new Date(+now + 2 * 864e5).toISOString()}&format=json`)
+    const [past, fc, ly] = await Promise.allSettled([
+      demandRange(from, now),
+      getJSON(`${API.elx}/forecast/demand/day-ahead/latest?from=${now.toISOString()}&to=${new Date(+now + 2 * 864e5).toISOString()}&format=json`),
+      demandRange(ago(from), new Date(+ago(now) + 2 * 864e5))
     ]);
-    if (past.status !== "fulfilled") throw new Error("demand");
-    const pts = dedupe(past.value.flatMap(rows), r => r.startTime)
-      .map(r => ({ t: new Date(r.startTime), v: r.initialDemandOutturn }))
-      .filter(p => p.t >= from && p.v != null).sort((a, b) => a.t - b.t);
-    if (!pts.length) throw new Error("empty");
-    const last = pts[pts.length - 1].t;
+    if (past.status !== "fulfilled" || !past.value.length) throw new Error("demand");
+    const pts = past.value, last = pts[pts.length - 1].t;
     const fut = fc.status === "fulfilled" ? dedupe(rows(fc.value), r => r.startTime).map(r => ({ t: new Date(r.startTime), v: r.nationalDemand })).filter(p => p.t > last).sort((a, b) => a.t - b.t) : [];
-    return { past: pts, fut };
+    return { past: pts, fut, ly: ly.status === "fulfilled" ? ly.value : [] };
   }
 
   async function loadCI(hours) {
-    const now = new Date();
-    const [past, fwd] = await Promise.allSettled([
-      ciIntRange(new Date(now - hours * 36e5), now),
-      getJSON(`${API.ci}/intensity/${ciISO(now)}/fw48h`)
+    const now = new Date(), from = new Date(now - hours * 36e5);
+    const [past, fwd, ly] = await Promise.allSettled([
+      ciIntRange(from, now),
+      getJSON(`${API.ci}/intensity/${ciISO(now)}/fw48h`),
+      ciIntRange(ago(from), new Date(+ago(now) + 2 * 864e5))
     ]);
     if (past.status !== "fulfilled") throw new Error("ci");
     const fut = fwd.status === "fulfilled" ? rows(fwd.value).map(d => ({ t: new Date(d.from), v: d.intensity.forecast })) : [];
-    return { past: past.value, fut };
+    return { past: past.value, fut, ly: ly.status === "fulfilled" ? ly.value : [] };
   }
 
   async function findAgileProduct() {
@@ -758,14 +836,33 @@ footer a { color: var(--accent); }
     if (!pts.length) throw new Error("empty");
     return { pts, product: prod };
   }
-  async function loadMid(hours) {
-    const now = new Date();
-    const parts = await Promise.all(chunks(new Date(now - hours * 36e5), now, 6).map(([a, b]) =>
-      getJSON(`${API.elx}/balancing/pricing/market-index?from=${a.toISOString()}&to=${b.toISOString()}&dataProviders=APXMIDP&format=json`)));
-    const pts = dedupe(parts.flatMap(rows).filter(r => r.volume > 0), r => r.startTime)
+  async function midRange(from, to) {
+    const parts = (to - from) > 6 * 864e5
+      ? [await getJSON(`${API.elx}/datasets/MID/stream?from=${from.toISOString()}&to=${to.toISOString()}`, 60000)]
+      : await Promise.all(chunks(from, to, 6).map(([a, b]) =>
+          getJSON(`${API.elx}/balancing/pricing/market-index?from=${a.toISOString()}&to=${b.toISOString()}&dataProviders=APXMIDP&format=json`)));
+    return dedupe(parts.flatMap(rows).filter(r => r.volume > 0 && (!r.dataProvider || r.dataProvider === "APXMIDP")), r => r.startTime)
       .map(r => ({ t: new Date(r.startTime), v: r.price })).sort((a, b) => a.t - b.t);
-    if (!pts.length) throw new Error("empty");
-    return pts;
+  }
+  async function loadMid(hours) {
+    const now = new Date(), from = new Date(now - hours * 36e5);
+    const [cur, ly] = await Promise.allSettled([midRange(from, now), midRange(ago(from), ago(now))]);
+    if (cur.status !== "fulfilled" || !cur.value.length) throw new Error("mid");
+    return { pts: cur.value, ly: ly.status === "fulfilled" ? ly.value : [] };
+  }
+
+  // Generation this period vs the same weeks a year earlier: shares from NESO, output in GW from Elexon (up to 30 days)
+  async function loadYoY(hours) {
+    const now = new Date(), from = new Date(now - hours * 36e5);
+    const avg = pts => { const o = {}; ORDER.forEach(f => o[f] = pts.reduce((a, p) => a + (p.v[f] || 0), 0) / pts.length); return o; };
+    const [cur, ly] = await Promise.all([ciGenRange(from, now), ciGenRange(ago(from), ago(now))]);
+    const out = { share: avg(cur), shareLy: avg(ly) };
+    if (hours <= 720) {
+      // stop 3 hours short so the lagging solar estimate is complete in both periods
+      const end = new Date(now - 3 * 36e5);
+      try { const [a, b] = await Promise.all([fuelhhPts(from, end), fuelhhPts(ago(from), ago(end))]); out.gw = avg(a); out.gwLy = avg(b); } catch (e) {}
+    }
+    return out;
   }
 
   /* ---------- charts: shared setup ---------- */
@@ -814,7 +911,7 @@ footer a { color: var(--accent); }
     return g;
   };
   const ciColour = v => v < 40 ? "#13855a" : v < 120 ? "#4f9a2c" : v < 200 ? "#c48a00" : v < 290 ? "#d0561f" : "#b3261e";
-  const timeLabels = (pts, hours) => pts.map(p => hours > 24 ? (hours > 200 ? dateFmt.format(p.t) + " " + hm(p.t) : dhm(p.t)) : hm(p.t));
+  const timeLabels = (pts, hours) => pts.map(p => hours >= YEAR ? dateFmt.format(p.t) : hours > 24 ? (hours > 200 ? dateFmt.format(p.t) + " " + hm(p.t) : dhm(p.t)) : hm(p.t));
 
   const PLUGINS = [
     { id: "touchClear",
@@ -924,22 +1021,25 @@ footer a { color: var(--accent); }
       $("nowTime").textContent = `Half-hour starting ${hm(n.mix.from)} · ${dayFmt.format(n.mix.from)}`;
       $("pRen").textContent = Math.round(ren) + "%";
       $("pLow").textContent = Math.round(ren + p.nuclear) + "%";
-      $("pFos").textContent = Math.round(p.gas + p.coal) + "%";
+      $("pFos").textContent = Math.round(p.gas) + "%";
     }
 
     const fuels = n.inst ? n.inst.fuels : null;
     if (fuels) {
-      const keys = ["gas", "wind", "nuclear", "biomass", "storage", "hydro", "other", "coal"].filter(k => (fuels[k] || 0) > 0.005 || k === "coal");
+      const keys = ["gas", "wind", "solar", "nuclear", "biomass", "storage", "hydro", "other"].filter(k => (fuels[k] || 0) > 0.005 || (k === "solar" && "solar" in fuels));
       const icNet = Object.values(n.inst.ics).reduce((a, v) => a + v, 0) / 1000;
       const tot = keys.reduce((a, k) => a + Math.max(0, fuels[k] || 0), 0) + Math.max(0, icNet);
       const max = Math.max(...keys.map(k => fuels[k] || 0), icNet, 1);
-      const barsData = keys.map(k => [LABEL[k], fuels[k] || 0, col(k)]);
+      const barsData = keys.map(k => [k === "solar" ? "Solar (est.)" : LABEL[k], fuels[k] || 0, col(k)]);
       barsData.push(["Imports (net)", icNet, col("imports")]);
       barsData.sort((a, b) => b[1] - a[1]);
       $("instBars").innerHTML = barsData.map(([l, v, c]) => `<div class="bar"><span>${l}</span><div class="track"><div class="fill" style="width:${Math.max(0, v) / max * 100}%;background:${c}"></div></div><b>${p1(v)} GW</b></div>`).join("");
       $("instTotal").textContent = p1(tot);
       $("instImp").textContent = (icNet >= 0 ? "+" : "") + p1(icNet);
       $("instTime").textContent = hm(n.inst.time);
+      $("instNote").textContent = n.inst.solarTime
+        ? `Solar is NESO's estimate for all GB solar panels, which this meter can't see directly. Latest estimate: ${hm(n.inst.solarTime)} (it runs about two hours behind).`
+        : "Solar is missing because NESO's solar estimate couldn't be loaded.";
       S.data.meter = { imp: Math.max(0, icNet), tot };
 
       const icKeys = Object.keys(IC).filter(k => k in n.inst.ics);
@@ -966,7 +1066,7 @@ footer a { color: var(--accent); }
     if (!ok) return;
     const p = pie.pct, pctF = v => p1(v) + "%";
     const ren = RENEW.reduce((a, f) => a + p[f], 0);
-    const imp = p.imports, home = 100 - imp, fossil = p.gas + p.coal;
+    const imp = p.imports, home = 100 - imp, fossil = p.gas;
     const when = S.pieRange ? `averaged over the ${rangeTxt(S.pieRange)}` : "this half-hour";
 
     const sorted = ORDER.filter(f => p[f] > 0.05).sort((a, b) => p[b] - p[a]);
@@ -999,21 +1099,24 @@ footer a { color: var(--accent); }
   }
 
   function renderHistory() {
-    const pts = S.data.hist, pct = S.unit === "pct";
+    let pts = S.data.hist; const pct = S.unit === "pct";
     const title = (pct ? "Generation share, " : "Transmission output, ") + rangeTxt(S.range);
     $("histTitle").textContent = title;
     $("histNote").textContent = pct
       ? "Half-hourly shares from NESO's Carbon Intensity API, including embedded solar and wind. Tap or hover for the full breakdown."
-      : "Half-hourly output from Elexon. Transmission-connected plant only, so solar and small wind farms aren't shown and imports are net.";
+      : "Half-hourly output from Elexon for transmission-connected plant, plus NESO's estimate for all solar (about two hours behind). Small wind farms aren't included and imports are net.";
     setTag("tagHist", !!pts); setTag("tagSum", !!pts);
     if (!pts) { emptyChart("cHist"); return; }
+    const ms = bucketFor(S.range);
+    const raw = pts;
+    pts = resample(raw, ms);
     const unitTxt = pct ? "%" : " GW";
     const fuels = ORDER.filter(f => pts.some(p => p.v[f] > 0.01));
     const surf = css("--surface");
     const datasets = fuels.map(f => ({
       label: LABEL[f], data: pts.map(p => +(p.v[f] || 0).toFixed(2)),
       backgroundColor: col(f) + "e0", borderColor: surf, borderWidth: 0.6, fill: true,
-      pointRadius: 0, pointHoverRadius: 3, pointHoverBackgroundColor: col(f), pointHoverBorderColor: surf, tension: 0.3, stack: "s"
+      pointRadius: 0, pointHoverRadius: 3, pointHoverBackgroundColor: col(f), pointHoverBorderColor: surf, tension: 0.35, cubicInterpolationMode: "monotone", stack: "s"
     }));
     const opts = baseOpts();
     opts.scales.y.stacked = true; opts.scales.y.beginAtZero = true;
@@ -1022,17 +1125,17 @@ footer a { color: var(--accent); }
     opts.scales.x.ticks.maxTicksLimit = S.range > 24 ? 7 : 9;
     opts.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
     opts.plugins.tooltip.callbacks = {
-      title: c => dhm(pts[c[0].dataIndex].t),
+      title: c => tipTime(pts[c[0].dataIndex].t, ms),
       label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}${unitTxt}`,
       footer: c => pct ? "" : `Total: ${c.reduce((a, x) => a + x.parsed.y, 0).toFixed(1)} GW`
     };
     opts.plugins.tooltip.filter = c => c.parsed.y >= 0.05;
     opts.plugins.tooltip.itemSort = (a, b) => b.parsed.y - a.parsed.y;
     opts.plugins.tooltip.footerColor = css("--ink");
-    if (S.range > 24) opts.plugins.dayRules = { times: pts.map(p => p.t) };
+    if (S.range > 24 && !ms) opts.plugins.dayRules = { times: pts.map(p => p.t) };
     mount("cHist", { type: "line", data: { labels: timeLabels(pts, S.range), datasets }, options: opts });
 
-    const avg = {}; fuels.forEach(f => avg[f] = pts.reduce((a, p) => a + (p.v[f] || 0), 0) / pts.length);
+    const avg = {}; fuels.forEach(f => avg[f] = raw.reduce((a, p) => a + (p.v[f] || 0), 0) / raw.length);
     const sum = fuels.reduce((a, f) => a + avg[f], 0) || 1;
     const sumItems = fuels.slice().sort((a, b) => avg[b] - avg[a]).map(f => ({ label: LABEL[f], value: avg[f] / sum * 100, color: col(f) }));
     const renShare = RENEW.reduce((a, f) => a + (avg[f] || 0), 0) / sum * 100;
@@ -1042,30 +1145,46 @@ footer a { color: var(--accent); }
     $("sumNote").textContent = `Average over the ${rangeTxt(S.range)}. Generated in GB: ${p1(100 - impShare)}%. Imported: ${p1(impShare)}%.`;
   }
 
+  // Line chart with optional forecast, a high-low band for bucketed ranges, and last year's line for comparison
   function lineWithForecast(id, past, fut, opts, style) {
+    const ms = style.ms || 0;
+    const key = p => ms >= 864e5 ? ukDay.format(p.t) : ms ? Math.floor(+p.t / ms) : +p.t;
+    const ly = style.ly && style.ly.length ? resample(style.ly.map(p => ({ t: new Date(+p.t + LY), v: p.v })), ms) : null;
+    const lyMap = ly ? new Map(ly.map(p => [key(p), p.v])) : null;
+    past = resample(past, ms); fut = resample(fut || [], ms);
     const lastT = past.length ? past[past.length - 1].t : 0;
     const all = [...past, ...fut.filter(p => p.t > lastT)];
     const n = past.length;
     const o = opts;
-    o.plugins.nowLine = { index: n - 1, label: "NOW" };
-    o.plugins.dayRules = { times: all.map(p => p.t) };
-    o.plugins.tooltip.filter = c => !(c.datasetIndex === 1 && c.dataIndex === n - 1);
-    mount(id, {
-      type: "line",
-      data: {
-        labels: timeLabels(all, S[style.rangeKey] + 48),
-        datasets: [
-          Object.assign({ label: "Measured", data: all.map((p, i) => i < n ? p.v : null), fill: "origin", pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.2, tension: 0.3 }, style.past),
-          Object.assign({ label: "Forecast", data: all.map((p, i) => i >= n - 1 ? (i === n - 1 ? past[n - 1].v : p.v) : null), fill: "origin", pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.2, tension: 0.3, borderDash: [5, 4] }, style.fut)
-        ]
-      },
-      options: o
-    });
+    const hidden = /^(High|Low)$/;
+    if (fut.length) o.plugins.nowLine = { index: n - 1, label: "NOW" };
+    if (!ms && S[style.rangeKey] > 24) o.plugins.dayRules = { times: all.map(p => p.t) };
+    o.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "line", padding: 14, font: { family: "Archivo", size: 12 }, filter: it => !hidden.test(it.text) } };
+    o.plugins.tooltip.filter = c => c.parsed.y != null && !hidden.test(c.dataset.label) && !(c.dataset.label === "Forecast" && c.dataIndex === n - 1);
+    const line = { pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.2, tension: 0.35, cubicInterpolationMode: "monotone" };
+    const ds = [];
+    if (ms) {
+      const band = style.band || css("--muted") + "2e";
+      ds.push({ label: "High", data: all.map((p, i) => i < n ? p.hi : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: "+1", backgroundColor: band, tension: 0.35, cubicInterpolationMode: "monotone" });
+      ds.push({ label: "Low", data: all.map((p, i) => i < n ? p.lo : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0.35, cubicInterpolationMode: "monotone" });
+    }
+    ds.push(Object.assign({ label: ms ? "Average" : "Measured", data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
+    if (fut.length) ds.push(Object.assign({ label: "Forecast", data: all.map((p, i) => i >= n - 1 ? (i === n - 1 ? past[n - 1].v : p.v) : null), fill: ms ? false : "origin", borderDash: [5, 4] }, line, style.fut));
+    if (lyMap) ds.push({ label: "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
+    mount(id, { type: "line", data: { labels: timeLabels(all, S[style.rangeKey] + (fut.length ? 48 : 0)), datasets: ds }, options: o });
     return all;
+  }
+  const tWhen = (t, h) => h > 168 ? dayFmt.format(t) + " " + hm(t) : dhm(t);
+  // compare this period with the same weeks a year earlier, up to the latest reading
+  function lyCompare(past, ly) {
+    const lastT = +past[past.length - 1].t;
+    const sub = ly.filter(p => +p.t + LY <= lastT);
+    if (!sub.length) return null;
+    return { avg: mean(sub), peak: sub.reduce((a, p) => p.v > a.v ? p : a), low: sub.reduce((a, p) => p.v < a.v ? p : a) };
   }
 
   function renderDemand() {
-    const d = S.data.dem, h = S.demRange;
+    const d = S.data.dem, h = S.demRange, ms = bucketFor(h);
     $("demTitle").textContent = `National demand, ${rangeTxt(h)} and next 2 days`;
     setTag("tagDem", !!d); setTag("tagDemS", !!d);
     if (!d) { emptyChart("cDem"); return; }
@@ -1074,29 +1193,33 @@ footer a { color: var(--accent); }
     o.scales.y.ticks.callback = v => (v / 1000) + " GW";
     o.scales.x.ticks.maxTicksLimit = 7;
     let all;
-    o.plugins.tooltip.callbacks = { title: c => dhm(all[c[0].dataIndex].t), label: c => ` ${c.dataset.label}: ${gw(c.parsed.y)}` };
+    o.plugins.tooltip.callbacks = { title: c => tipTime(all[c[0].dataIndex].t, ms), label: c => ` ${c.dataset.label}: ${gw(c.parsed.y)}` };
     all = lineWithForecast("cDem", d.past, d.fut, o, {
-      rangeKey: "demRange",
+      rangeKey: "demRange", ms, ly: d.ly, band: accent + "2e",
       past: { borderColor: accent, backgroundColor: grad(accent, "38", "00") },
       fut: { borderColor: accent, backgroundColor: grad(accent, "12", "00") }
     });
     const past = d.past, last = past[past.length - 1];
     const mx = past.reduce((a, p) => p.v > a.v ? p : a), mn = past.reduce((a, p) => p.v < a.v ? p : a);
-    const av = past.reduce((a, p) => a + p.v, 0) / past.length;
+    const av = mean(past);
     $("dNow").textContent = gw(last.v); $("dNowT").textContent = dhm(last.t);
-    $("dMax").textContent = gw(mx.v); $("dMaxT").textContent = dhm(mx.t);
-    $("dMin").textContent = gw(mn.v); $("dMinT").textContent = dhm(mn.t);
+    $("dMax").textContent = gw(mx.v); $("dMaxT").textContent = tWhen(mx.t, h);
+    $("dMin").textContent = gw(mn.v); $("dMinT").textContent = tWhen(mn.t, h);
     $("dAvg").textContent = gw(av); $("dAvgT").textContent = rangeTxt(h);
     if (d.fut.length) { const pk = d.fut.reduce((a, p) => p.v > a.v ? p : a); $("dFc").textContent = gw(pk.v); $("dFcT").textContent = dhm(pk.t); }
-    // average daily swing between peak and trough
     const byDay = new Map();
-    past.forEach(p => { const k = dayFmt.format(p.t); const e = byDay.get(k) || { mx: -1, mn: 1e9 }; e.mx = Math.max(e.mx, p.v); e.mn = Math.min(e.mn, p.v); byDay.set(k, e); });
+    past.forEach(p => { const k = ukDay.format(p.t); const e = byDay.get(k) || { mx: -1, mn: 1e9 }; e.mx = Math.max(e.mx, p.v); e.mn = Math.min(e.mn, p.v); byDay.set(k, e); });
     const swings = [...byDay.values()].filter(e => e.mx > 0).map(e => e.mx - e.mn);
     $("dSwing").textContent = swings.length ? gw(swings.reduce((a, b) => a + b, 0) / swings.length) : "—";
+    const c = d.ly.length ? lyCompare(past, d.ly) : null;
+    $("dYoY").textContent = c ? signed(pctCh(av, c.avg)) + "%" : "—";
+    $("dYoYT").textContent = c ? `${gw(c.avg)} a year earlier` : "Not available";
+    $("dPkYoY").textContent = c ? signed(pctCh(mx.v, c.peak.v)) + "%" : "—";
+    $("dPkYoYT").textContent = c ? `${gw(c.peak.v)} a year earlier` : "Not available";
   }
 
   function renderCI() {
-    const d = S.data.ci, h = S.ciRange;
+    const d = S.data.ci, h = S.ciRange, ms = bucketFor(h);
     $("ciTitle").textContent = `${rangeTxt(h)[0].toUpperCase() + rangeTxt(h).slice(1)} and next 48 hours`;
     setTag("tagCIh", !!d); setTag("tagCIs", !!d);
     if (!d) { emptyChart("cCI"); return; }
@@ -1106,24 +1229,57 @@ footer a { color: var(--accent); }
     o.scales.y.ticks.callback = v => v + " g";
     o.scales.x.ticks.maxTicksLimit = 7;
     let all;
-    o.plugins.tooltip.callbacks = { title: c => dhm(all[c[0].dataIndex].t), label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y)} g · ${ciIndex(c.parsed.y)}` };
+    o.plugins.tooltip.callbacks = { title: c => tipTime(all[c[0].dataIndex].t, ms), label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y)} g · ${ciIndex(c.parsed.y)}` };
     const seg = { borderColor: c => ciColour((c.p0.parsed.y + c.p1.parsed.y) / 2) };
     all = lineWithForecast("cCI", d.past, d.fut, o, {
-      rangeKey: "ciRange",
+      rangeKey: "ciRange", ms, ly: d.ly,
       past: { borderColor: ink, segment: seg, backgroundColor: grad(muted, "30", "00"), borderWidth: 2.4 },
       fut: { borderColor: ink, segment: { ...seg, borderDash: [5, 4] }, backgroundColor: grad(muted, "12", "00"), borderWidth: 2.4 }
     });
     const past = d.past;
     const mx = past.reduce((a, p) => p.v > a.v ? p : a), mn = past.reduce((a, p) => p.v < a.v ? p : a);
-    $("cAvg").textContent = Math.round(past.reduce((a, p) => a + p.v, 0) / past.length);
-    $("cMin").textContent = mn.v + " g"; $("cMinT").textContent = dhm(mn.t);
-    $("cMax").textContent = mx.v + " g"; $("cMaxT").textContent = dhm(mx.t);
+    const av = mean(past);
+    $("cAvg").textContent = Math.round(av);
+    $("cMin").textContent = mn.v + " g"; $("cMinT").textContent = tWhen(mn.t, h);
+    $("cMax").textContent = mx.v + " g"; $("cMaxT").textContent = tWhen(mx.t, h);
     if (d.fut.length) { const b = d.fut.reduce((a, p) => p.v < a.v ? p : a); $("cFc").textContent = b.v + " g"; $("cFcT").textContent = dhm(b.t); }
+    const c = d.ly.length ? lyCompare(past, d.ly) : null;
+    $("cLy").textContent = c ? Math.round(c.avg) : "—";
+    $("cYoY").textContent = c ? signed(pctCh(av, c.avg)) + "%" : "—";
+    $("cYoY").className = c ? (av < c.avg ? "good" : "bad") : "";
+    $("cYoYT").textContent = c ? (av < c.avg ? "Cleaner than a year earlier" : "Dirtier than a year earlier") : "Not available";
     const bands = [["very low", 0, 40], ["low", 40, 120], ["moderate", 120, 200], ["high", 200, 290], ["very high", 290, 1e9]];
     $("ciBands").innerHTML = bands.map(([name, lo, hi]) => {
       const share = past.filter(p => p.v >= lo && p.v < hi).length / past.length * 100;
       return `<div class="bar"><span>${name[0].toUpperCase() + name.slice(1)}</span><div class="track"><div class="fill" style="width:${share}%;background:${ciColour(lo)}"></div></div><b>${Math.round(share)}%</b></div>`;
     }).join("");
+  }
+
+  function renderYoY() {
+    const y = S.data.yoy, h = S.range;
+    $("yoyTitle").textContent = `Generation, ${rangeTxt(h)} vs the same period a year earlier`;
+    setTag("tagYoY", !!y, "Year on year");
+    if (!y) { $("yoyTable").innerHTML = ""; return; }
+    const cleanSet = new Set(["wind", "solar", "hydro", "biomass", "nuclear"]);
+    const tone = (f, dv) => Math.abs(dv) < 0.05 ? "" : cleanSet.has(f) ? (dv > 0 ? "good" : "bad") : f === "gas" ? (dv > 0 ? "bad" : "good") : "";
+    const fuels = ORDER.filter(f => (y.share[f] || 0) > 0.05 || (y.shareLy[f] || 0) > 0.05).sort((a, b) => y.share[b] - y.share[a]);
+    const hasGW = !!y.gw;
+    let html = `<thead><tr><th>Source</th><th>Share now</th><th>A year earlier</th><th>Change</th>${hasGW ? '<th class="grp">Output now</th><th>A year earlier</th><th>Growth</th>' : ""}</tr></thead><tbody>`;
+    fuels.forEach(f => {
+      const a = y.share[f] || 0, b = y.shareLy[f] || 0, dpts = a - b;
+      html += `<tr><td><i style="background:${col(f)}"></i>${LABEL[f]}</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${tone(f, dpts)}">${signed(dpts)} pts</td>`;
+      if (hasGW) {
+        const g = y.gw[f] || 0, gl = y.gwLy[f] || 0;
+        const growth = gl > 0.05 ? pctCh(g, gl) : null;
+        html += `<td class="grp">${p1(g)} GW</td><td>${p1(gl)} GW</td><td class="${growth == null ? "" : tone(f, growth)}">${growth == null ? "—" : signed(growth) + "%"}</td>`;
+      }
+      html += "</tr>";
+    });
+    $("yoyTable").innerHTML = html + "</tbody>";
+    const ren = s => RENEW.reduce((a, f) => a + (s[f] || 0), 0);
+    const low = s => ren(s) + (s.nuclear || 0);
+    $("yoyNote").textContent = `Low-carbon share ${p1(low(y.share))}% vs ${p1(low(y.shareLy))}% a year earlier; renewables ${p1(ren(y.share))}% vs ${p1(ren(y.shareLy))}%; gas ${p1(y.share.gas)}% vs ${p1(y.shareLy.gas)}%. Compared with the same days 52 weeks earlier so weekdays line up.` +
+      (hasGW ? " Output is the average in GW: Elexon's metered plant plus NESO's solar estimate (small wind farms aren't metered)." : " Output in GW is shown for ranges up to 30 days.");
   }
 
   function priceColour(v) {
@@ -1187,24 +1343,31 @@ footer a { color: var(--accent); }
   }
 
   function renderMid() {
-    const mid = S.data.mid, h = S.midRange;
+    const m = S.data.mid, h = S.midRange, ms = bucketFor(h);
     $("midTitle").textContent = `Wholesale price, ${rangeTxt(h)}`;
-    setTag("tagMid", !!mid);
-    if (!mid) { emptyChart("cMid"); return; }
-    const avg = mid.reduce((a, p) => a + p.v, 0) / mid.length;
+    setTag("tagMid", !!m);
+    if (!m) { emptyChart("cMid"); return; }
+    const mid = m.pts;
+    const avg = mean(mid);
     const mx = mid.reduce((a, p) => p.v > a.v ? p : a), mn = mid.reduce((a, p) => p.v < a.v ? p : a);
     $("mNow").textContent = "£" + mid[mid.length - 1].v.toFixed(0);
     $("mAvg").textContent = "£" + avg.toFixed(0);
     $("mMax").textContent = "£" + mx.v.toFixed(0);
     $("mMin").textContent = "£" + mn.v.toFixed(0);
+    const c = m.ly.length ? lyCompare(mid, m.ly) : null;
+    $("mYoY").textContent = c ? signed(pctCh(avg, c.avg)) + "%" : "—";
+    $("mYoYT").textContent = c ? `vs £${c.avg.toFixed(0)} a year earlier` : "Average vs last year";
     const accent = css("--accent");
     const o = baseOpts();
     o.scales.y.ticks.callback = v => "£" + v;
     o.scales.x.ticks.maxTicksLimit = 7;
-    if (h > 24) o.plugins.dayRules = { times: mid.map(p => p.t) };
     o.plugins.hLine = { value: avg, label: `AVG £${avg.toFixed(0)}` };
-    o.plugins.tooltip.callbacks = { title: c => dhm(mid[c[0].dataIndex].t), label: c => ` £${c.parsed.y.toFixed(2)}/MWh · ${(c.parsed.y / 10).toFixed(1)}p/kWh` };
-    mount("cMid", { type: "line", data: { labels: timeLabels(mid, h), datasets: [{ data: mid.map(p => p.v), borderColor: accent, backgroundColor: grad(accent, "40", "00"), fill: "origin", pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: accent, borderWidth: 1.8, tension: 0.25 }] }, options: o });
+    let all;
+    o.plugins.tooltip.callbacks = { title: c2 => tipTime(all[c2[0].dataIndex].t, ms), label: c2 => ` ${c2.dataset.label}: £${c2.parsed.y.toFixed(2)}/MWh · ${(c2.parsed.y / 10).toFixed(1)}p/kWh` };
+    all = lineWithForecast("cMid", mid, [], o, {
+      rangeKey: "midRange", ms, ly: m.ly, band: accent + "2e",
+      past: { borderColor: accent, backgroundColor: grad(accent, "40", "00"), borderWidth: 1.8, pointHoverBackgroundColor: accent }
+    });
   }
 
   function bestWindow(pts, k, now) {
@@ -1368,27 +1531,49 @@ footer a { color: var(--accent); }
   const refreshCI = () => run("ci", () => loadCI(S.ciRange), () => { S.data.ciForecast = S.data.ci ? S.data.ci.fut : null; renderCI(); renderWindows(); });
   const refreshAgile = () => run("agile", loadAgile, renderAgile);
   const refreshMid = () => run("mid", () => loadMid(S.midRange), renderMid);
+  const refreshYoY = () => run("yoy", () => loadYoY(S.range), renderYoY);
 
-  function refreshAll() {
-    return Promise.allSettled([refreshNow(), S.pieRange ? refreshPies() : null, refreshHistory(), refreshDemand(), refreshCI(), refreshAgile(), refreshMid()]);
+  // every 5 minutes refresh the live panels; ranges of 30 days or more only every 30 minutes
+  let cycle = 0;
+  function refreshAll(force) {
+    const due = h => force || h < 720 || cycle % 6 === 0;
+    cycle++;
+    return Promise.allSettled([
+      refreshNow(), refreshAgile(),
+      S.pieRange && due(S.pieRange) ? refreshPies() : null,
+      due(S.range) ? refreshHistory() : null, due(S.range) ? refreshYoY() : null,
+      due(S.demRange) ? refreshDemand() : null, due(S.ciRange) ? refreshCI() : null, due(S.midRange) ? refreshMid() : null
+    ]);
   }
   function rerenderAll() {
     if (S.data.now) renderNow(S.data.now);
-    renderPies(); renderHistory(); renderDemand(); renderCI(); renderAgile(); renderMid(); renderCapacity();
+    renderPies(); renderHistory(); renderYoY(); renderDemand(); renderCI(); renderAgile(); renderMid(); renderCapacity();
   }
 
   // segmented controls: data-attribute → state key → refresh
+  const TAGS = { pie: ["tagMix", "tagImp", "tagClean", "tagRen"], range: ["tagHist", "tagSum", "tagYoY"], unit: ["tagHist", "tagSum"], dem: ["tagDem", "tagDemS"], mid: ["tagMid"], ci: ["tagCIh", "tagCIs"] };
+  function syncHistButtons() {
+    const yearBtn = document.querySelector('[data-range="8760"]');
+    yearBtn.disabled = S.unit === "gw";
+    yearBtn.title = S.unit === "gw" ? "1 year is available in Share %" : "";
+  }
   function seg(attr, key, refresh, before) {
     document.querySelectorAll(`[data-${attr}]`).forEach(b => b.addEventListener("click", () => {
       const v = b.dataset[attr];
       S[key] = isNaN(+v) ? v : +v;
       document.querySelectorAll(`[data-${attr}]`).forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      if (attr === "unit" && S.unit === "gw" && S.range >= YEAR) {
+        S.range = 720;
+        document.querySelectorAll("[data-range]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.range === "720")));
+      }
+      if (attr === "unit" || attr === "range") syncHistButtons();
+      (TAGS[attr] || []).forEach(id => { const el = $(id); if (el) { el.textContent = (+v >= YEAR ? "Loading a year…" : "Loading…"); el.classList.remove("ex"); } });
       if (before) before();
       refresh();
     }));
   }
   seg("pie", "pieRange", refreshPies, () => { S.data.pieOk = false; });
-  seg("range", "range", refreshHistory, () => { S.data.histOk = false; });
+  seg("range", "range", () => { refreshHistory(); refreshYoY(); }, () => { S.data.histOk = false; S.data.yoyOk = false; });
   seg("unit", "unit", refreshHistory, () => { S.data.histOk = false; });
   seg("dem", "demRange", refreshDemand, () => { S.data.demOk = false; });
   seg("mid", "midRange", refreshMid, () => { S.data.midOk = false; });
@@ -1404,7 +1589,7 @@ footer a { color: var(--accent); }
     try { localStorage.setItem("pylon-region", S.region); } catch (e) {}
     refreshAgile();
   });
-  $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; refreshAll(); });
+  $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; CACHE.clear(); refreshAll(true); });
   $("dur").addEventListener("change", () => { if (S.data.agile) renderAgile(); else renderWindows(); });
 
   window.addEventListener("scroll", () => clearAllCharts(), { passive: true });
@@ -1412,10 +1597,11 @@ footer a { color: var(--accent); }
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerenderAll); } catch (e) {}
   new MutationObserver(rerenderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
+  syncHistButtons();
   renderGantt();
   renderCapacity();
-  refreshAll();
-  setInterval(refreshAll, 5 * 60 * 1000);
+  refreshAll(true);
+  setInterval(() => refreshAll(false), 5 * 60 * 1000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshNow(); });
 })();
 </script>
