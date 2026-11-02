@@ -428,7 +428,12 @@ footer a { color: var(--accent); }
       </div>
       <div class="grid">
         <div class="card s8">
-          <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3><span class="tag" id="tagAgile">—</span></div>
+          <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3>
+            <div class="tools"><div class="seg" role="group" aria-label="Agile view">
+              <button type="button" data-ag="ahead" aria-pressed="true">Next 24 h</button>
+              <button type="button" data-ag="days" aria-pressed="false">Today &amp; tomorrow</button>
+            </div><span class="tag" id="tagAgile">—</span></div>
+          </div>
           <div class="stats">
             <div class="stat"><span>Now</span><b id="sNow">—</b><small id="sNowT">—</small></div>
             <div class="stat"><span>Lowest ahead</span><b id="sMin">—</b><small id="sMinT">—</small></div>
@@ -443,7 +448,7 @@ footer a { color: var(--accent); }
             <span><i style="background:var(--c-gas)"></i>25–35p</span>
             <span><i style="background:var(--bad)"></i>35p and up</span>
           </div>
-          <p class="note">Tomorrow's rates appear after Octopus publishes them, usually around 4pm.</p>
+          <p class="note" id="agNote">Tomorrow's rates appear after Octopus publishes them, usually around 4pm.</p>
         </div>
         <div class="card s4">
           <div class="card-head"><h3>Best time to plug in</h3></div>
@@ -483,6 +488,17 @@ footer a { color: var(--accent); }
         <p>What the UK has built, from government statistics. These figures change slowly, a few times a year.</p>
       </div>
       <div class="grid">
+        <div class="card s12">
+          <div class="card-head"><h3>Total generating capacity over time</h3><span class="tag">DESNZ</span></div>
+          <div class="kv">
+            <div><b>112.1</b><span>GW in 2025</span></div>
+            <div><b id="totG">—</b><span>Growth in 2025</span></div>
+            <div><b id="tot10">—</b><span>Added since 2010</span></div>
+            <div><b id="totRen">—</b><span>Renewable share</span></div>
+          </div>
+          <div class="chart"><canvas id="cTotal" aria-label="UK total generating capacity by year, renewable and other, with growth"></canvas></div>
+          <p class="note">Total UK capacity from UK Energy in Brief 2026, split into renewable and everything else. DESNZ publishes these years only, so growth across a gap (for example 2010 to 2020) is shown as the average per year.</p>
+        </div>
         <div class="card s6">
           <div class="card-head"><h3>UK generating capacity, 2025</h3><span class="tag">DESNZ</span></div>
           <div class="kv"><div><b>112.1</b><span>GW in total</span></div><div><b>65.3</b><span>GW renewable</span></div></div>
@@ -609,7 +625,7 @@ footer a { color: var(--accent); }
   };
 
   const $ = id => document.getElementById(id);
-  const S = { pieRange: 0, range: 24, unit: "pct", demRange: 168, midRange: 168, ciRange: 24, region: "C", live: {}, data: {}, charts: {} };
+  const S = { agView: "ahead", pieRange: 0, range: 24, unit: "pct", demRange: 168, midRange: 168, ciRange: 24, region: "C", live: {}, data: {}, charts: {} };
   try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
 
   /* ---------- helpers ---------- */
@@ -634,29 +650,42 @@ footer a { color: var(--accent); }
   const ukDay = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London" });
   // Long ranges are bucketed: half-hours up to 7 days, 3-hour blocks for 30 days, whole days for a year.
   // Each bucket keeps its average plus the high and low, so the line is smooth and the band keeps the detail.
-  const bucketFor = h => h <= 168 ? 0 : h <= 720 ? 3 * 36e5 : 864e5;
+  // Long ranges are bucketed: half-hours up to 7 days, 3-hour blocks for 30 days, whole weeks for a year (~52 points).
+  // Each bucket keeps its average plus its high and low, so the line is smooth and the shaded band keeps the detail.
+  const WEEK = 7 * 864e5;
+  const bucketFor = h => h <= 168 ? 0 : h <= 720 ? 3 * 36e5 : WEEK;
+  // weeks start on Monday (1 Jan 1970 was a Thursday, hence the 3-day offset)
+  const bucketKey = (t, ms) => ms >= WEEK ? Math.floor((+t / 864e5 + 3) / 7) : ms ? Math.floor(+t / ms) : +t;
+  const bucketStart = (k, ms) => ms >= WEEK ? new Date((k * 7 - 3) * 864e5) : new Date(k * ms);
   function resample(pts, ms) {
     if (!ms || !pts.length) return pts;
     const by = new Map();
-    pts.forEach(p => { const k = ms >= 864e5 ? ukDay.format(p.t) : Math.floor(+p.t / ms); if (!by.has(k)) by.set(k, []); by.get(k).push(p); });
-    return [...by.values()].map(list => {
-      const t = list[0].t;
+    pts.forEach(p => { const k = bucketKey(p.t, ms); if (!by.has(k)) by.set(k, []); by.get(k).push(p); });
+    return [...by.entries()].map(([k, list]) => {
+      const t = bucketStart(k, ms);
       if (typeof list[0].v === "object") { const v = {}; Object.keys(list[0].v).forEach(f => v[f] = list.reduce((a, p) => a + (p.v[f] || 0), 0) / list.length); return { t, v }; }
       const vals = list.map(p => p.v);
       return { t, v: vals.reduce((a, b) => a + b, 0) / vals.length, lo: Math.min(...vals), hi: Math.max(...vals) };
     });
   }
-  // centred rolling mean (7 days for a year) so the long-range line is smooth; the high-low band keeps the detail
-  function roll(pts, w) {
-    const half = Math.floor(w / 2);
-    return pts.map((p, i) => {
-      const win = pts.slice(Math.max(0, i - half), i + half + 1);
-      if (typeof p.v === "object") { const v = {}; Object.keys(p.v).forEach(f => v[f] = win.reduce((a, q) => a + (q.v[f] || 0), 0) / win.length); return Object.assign({}, p, { v }); }
-      return Object.assign({}, p, { v: win.reduce((a, q) => a + q.v, 0) / win.length });
-    });
+  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= WEEK ? "Week of " + dayFmt.format(t) + " · weekly average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
+  const avgLabel = ms => ms >= WEEK ? "Weekly average" : ms ? "3-hour average" : "Measured";
+
+  // Keep rare spikes from squashing a chart: cap the axis near the 1st/99th percentile and say so on the chart.
+  function niceRound(x, span, up) {
+    const step = Math.pow(10, Math.floor(Math.log10(Math.max(span, 1e-9)))) / 2;
+    return (up ? Math.ceil(x / step) : Math.floor(x / step)) * step;
   }
-  const smooth = (pts, ms) => ms >= 864e5 ? roll(pts, 7) : pts;
-  const tipTime = (t, ms) => !ms ? dhm(t) : ms >= 864e5 ? dayFmt.format(t) + " · 7-day average" : `${dhm(t)}–${hm(new Date(+t + ms))} · average`;
+  function robustY(o, vals, fmt) {
+    const v = vals.filter(x => x != null && isFinite(x)).sort((a, b) => a - b);
+    if (v.length < 12) return;
+    const q = p => v[Math.round(p * (v.length - 1))];
+    const lo = q(0.01), hi = q(0.99), span = (hi - lo) || Math.abs(hi) || 1;
+    const notes = [];
+    if (v[v.length - 1] > hi + span * 0.4) { o.scales.y.max = niceRound(hi + span * 0.12, span, true); notes.push("peak " + fmt(v[v.length - 1])); }
+    if (v[0] < lo - span * 0.4) { o.scales.y.min = niceRound(lo - span * 0.12, span, false); o.scales.y.beginAtZero = false; notes.push("low " + fmt(v[0])); }
+    if (notes.length) o.plugins.trimNote = { text: "SPIKES TRIMMED · " + notes.join(" · ").toUpperCase() };
+  }
   const LY = 364 * 864e5; // 52 weeks, so weekdays line up
   const ago = d => new Date(+d - LY);
   const mean = pts => pts.reduce((a, p) => a + p.v, 0) / pts.length;
@@ -974,6 +1003,16 @@ footer a { color: var(--accent); }
         });
         ctx.restore();
       } },
+    { // tells the reader when the axis has been capped to keep spikes from flattening the chart
+      id: "trimNote",
+      afterDatasetsDraw(chart, _a, o) {
+        if (!o || !o.text) return;
+        const a = chart.chartArea, ctx = chart.ctx;
+        ctx.save(); ctx.font = "600 9px 'Martian Mono', monospace"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+        const w = ctx.measureText(o.text).width;
+        ctx.fillStyle = css("--surface"); ctx.globalAlpha = 0.85; ctx.fillRect(a.left + 4, a.top + 2, w + 10, 15);
+        ctx.globalAlpha = 1; ctx.fillStyle = css("--warn"); ctx.fillText(o.text, a.left + 9, a.top + 5); ctx.restore();
+      } },
     { // centre label drawn under the tooltip so the tooltip always sits on top
       id: "center",
       afterDatasetsDraw(chart, _a, o) {
@@ -1120,7 +1159,7 @@ footer a { color: var(--accent); }
     if (!pts) { emptyChart("cHist"); return; }
     const ms = bucketFor(S.range);
     const raw = pts;
-    pts = smooth(resample(raw, ms), ms);
+    pts = resample(raw, ms);
     const unitTxt = pct ? "%" : " GW";
     const fuels = ORDER.filter(f => pts.some(p => p.v[f] > 0.01));
     const surf = css("--surface");
@@ -1159,10 +1198,10 @@ footer a { color: var(--accent); }
   // Line chart with optional forecast, a high-low band for bucketed ranges, and last year's line for comparison
   function lineWithForecast(id, past, fut, opts, style) {
     const ms = style.ms || 0;
-    const key = p => ms >= 864e5 ? ukDay.format(p.t) : ms ? Math.floor(+p.t / ms) : +p.t;
-    const ly = style.ly && style.ly.length ? smooth(resample(style.ly.map(p => ({ t: new Date(+p.t + LY), v: p.v })), ms), ms) : null;
+    const key = p => bucketKey(p.t, ms);
+    const ly = style.ly && style.ly.length ? resample(style.ly.map(p => ({ t: new Date(+p.t + LY), v: p.v })), ms) : null;
     const lyMap = ly ? new Map(ly.map(p => [key(p), p.v])) : null;
-    past = smooth(resample(past, ms), ms); fut = resample(fut || [], ms);
+    past = resample(past, ms); fut = ms >= WEEK ? [] : resample(fut || [], ms);
     const lastT = past.length ? past[past.length - 1].t : 0;
     const all = [...past, ...fut.filter(p => p.t > lastT)];
     const n = past.length;
@@ -1179,9 +1218,10 @@ footer a { color: var(--accent); }
       ds.push({ label: "High", data: all.map((p, i) => i < n ? p.hi : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: "+1", backgroundColor: band, borderColor: band, tension: 0.35, cubicInterpolationMode: "monotone" });
       ds.push({ label: "Low", data: all.map((p, i) => i < n ? p.lo : null), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0.35, cubicInterpolationMode: "monotone" });
     }
-    ds.push(Object.assign({ label: ms >= 864e5 ? "7-day average" : ms ? "3-hour average" : "Measured", data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
+    ds.push(Object.assign({ label: avgLabel(ms), data: all.map((p, i) => i < n ? p.v : null), fill: ms ? false : "origin" }, line, style.past));
     if (fut.length) ds.push(Object.assign({ label: "Forecast", data: all.map((p, i) => i >= n - 1 ? (i === n - 1 ? past[n - 1].v : p.v) : null), fill: ms ? false : "origin", borderDash: [5, 4] }, line, style.fut));
-    if (lyMap) ds.push({ label: ms >= 864e5 ? "Last year (7-day average)" : "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
+    if (lyMap) ds.push({ label: ms >= WEEK ? "Last year (weekly average)" : "Same time last year", data: all.map(p => lyMap.get(key(p)) ?? null), borderColor: css("--muted"), backgroundColor: css("--muted"), borderDash: [2, 3], borderWidth: 1.4, pointRadius: 0, pointHoverRadius: 3, fill: false, tension: 0.35, cubicInterpolationMode: "monotone", spanGaps: true });
+    if (style.fmt) robustY(o, ds.filter(d => !/^(High|Low)$/.test(d.label) || ms).flatMap(d => d.data), style.fmt);
     mount(id, { type: "line", data: { labels: timeLabels(all, S[style.rangeKey] + (fut.length ? 48 : 0)), datasets: ds }, options: o });
     return all;
   }
@@ -1206,7 +1246,7 @@ footer a { color: var(--accent); }
     let all;
     o.plugins.tooltip.callbacks = { title: c => tipTime(all[c[0].dataIndex].t, ms), label: c => ` ${c.dataset.label}: ${gw(c.parsed.y)}` };
     all = lineWithForecast("cDem", d.past, d.fut, o, {
-      rangeKey: "demRange", ms, ly: d.ly, band: accent + "2e",
+      rangeKey: "demRange", ms, ly: d.ly, band: accent + "2e", fmt: gw,
       past: { borderColor: accent, backgroundColor: grad(accent, "38", "00") },
       fut: { borderColor: accent, backgroundColor: grad(accent, "12", "00") }
     });
@@ -1243,7 +1283,7 @@ footer a { color: var(--accent); }
     o.plugins.tooltip.callbacks = { title: c => tipTime(all[c[0].dataIndex].t, ms), label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y)} g · ${ciIndex(c.parsed.y)}` };
     const seg = { borderColor: c => ciColour((c.p0.parsed.y + c.p1.parsed.y) / 2) };
     all = lineWithForecast("cCI", d.past, d.fut, o, {
-      rangeKey: "ciRange", ms, ly: d.ly,
+      rangeKey: "ciRange", ms, ly: d.ly, fmt: v => Math.round(v) + " g",
       past: { borderColor: ink, segment: seg, backgroundColor: grad(muted, "30", "00"), borderWidth: 2.4 },
       fut: { borderColor: ink, segment: { ...seg, borderDash: [5, 4] }, backgroundColor: grad(muted, "12", "00"), borderWidth: 2.4 }
     });
@@ -1306,8 +1346,14 @@ footer a { color: var(--accent); }
     setTag("tagAgileNow", !!a, REGIONS[S.region]);
     setTag("tagAgile", !!a, a ? a.product : "");
     if (!a) { emptyChart("cAgile"); return; }
-    const now = new Date(), pts = a.pts;
+    const now = new Date();
+    const ahead24 = S.agView === "ahead";
+    const pts = ahead24 ? a.pts.filter(p => p.end > now && p.t < new Date(+now + 864e5)) : a.pts;
     const curIdx = pts.findIndex(p => p.t <= now && p.end > now);
+    $("agTitle").textContent = ahead24 ? "Agile rates, next 24 hours" : "Agile rates, today and tomorrow";
+    $("agNote").textContent = ahead24 && pts.length < 48
+      ? `Octopus has published ${pts.length} of the next 48 half-hours so far. Tomorrow's rates appear around 4pm.`
+      : "Tomorrow's rates appear after Octopus publishes them, usually around 4pm.";
     const cur = pts[curIdx], ahead = pts.filter(p => p.end > now);
     $("agNow").textContent = cur ? p1(cur.v) : "—";
     const next = curIdx >= 0 ? pts[curIdx + 1] : null;
@@ -1331,6 +1377,8 @@ footer a { color: var(--accent); }
     o.scales.x.ticks.maxTicksLimit = 9;
     o.plugins.nowLine = { index: curIdx, label: "NOW" };
     if (av != null) o.plugins.hLine = { value: av, label: `AVG AHEAD ${p1(av)}p` };
+    o.scales.y.beginAtZero = true;
+    robustY(o, pts.map(p => p.v), v => p1(v) + "p");
     o.plugins.dayRules = { times: pts.map(p => p.t) };
     o.plugins.tooltip.callbacks = {
       title: c => `${dhm(pts[c[0].dataIndex].t)}–${hm(pts[c[0].dataIndex].end)}`,
@@ -1376,7 +1424,7 @@ footer a { color: var(--accent); }
     let all;
     o.plugins.tooltip.callbacks = { title: c2 => tipTime(all[c2[0].dataIndex].t, ms), label: c2 => ` ${c2.dataset.label}: £${c2.parsed.y.toFixed(2)}/MWh · ${(c2.parsed.y / 10).toFixed(1)}p/kWh` };
     all = lineWithForecast("cMid", mid, [], o, {
-      rangeKey: "midRange", ms, ly: m.ly, band: accent + "2e",
+      rangeKey: "midRange", ms, ly: m.ly, band: accent + "2e", fmt: v => "£" + Math.round(v),
       past: { borderColor: accent, backgroundColor: grad(accent, "40", "00"), borderWidth: 1.8, pointHoverBackgroundColor: accent }
     });
   }
@@ -1423,7 +1471,38 @@ footer a { color: var(--accent); }
     };
   }
 
+  const TOTAL_CAP = [[1996, 73.6, 2.3], [2000, 77.9, 3.0], [2010, 93.2, 9.3], [2020, 101.3, 48.1], [2023, 106.5, 58.1], [2024, 108.6, 62.0], [2025, 112.1, 65.3]];
+  function renderTotalCap() {
+    const yrs = TOTAL_CAP.map(r => r[0]);
+    // average yearly growth since the previous published year
+    const g = TOTAL_CAP.map((r, i) => i ? (Math.pow(r[1] / TOTAL_CAP[i - 1][1], 1 / (r[0] - TOTAL_CAP[i - 1][0])) - 1) * 100 : null);
+    const last = TOTAL_CAP[TOTAL_CAP.length - 1];
+    $("totG").textContent = sign(g[g.length - 1]);
+    $("tot10").textContent = "+" + (last[1] - 93.2).toFixed(1) + " GW";
+    $("totRen").textContent = Math.round(last[2] / last[1] * 100) + "%";
+    const ink = css("--ink");
+    const o = baseOpts();
+    o.scales.y.stacked = true; o.scales.y.beginAtZero = true;
+    o.scales.x.stacked = true;
+    o.scales.y.ticks.callback = v => v + " GW";
+    growthAxis(o, 4);
+    o.plugins.legend = { display: true, position: "bottom", labels: { color: ink, usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
+    o.plugins.tooltip.callbacks = {
+      label: c => c.dataset.yAxisID === "y2"
+        ? ` Growth: ${sign(c.parsed.y)} a year` + (c.dataIndex && yrs[c.dataIndex] - yrs[c.dataIndex - 1] > 1 ? ` (average, ${yrs[c.dataIndex - 1]}–${yrs[c.dataIndex]})` : "")
+        : ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)} GW`,
+      footer: c => { const r = TOTAL_CAP[c[0].dataIndex]; return `Total: ${r[1].toFixed(1)} GW · ${Math.round(r[2] / r[1] * 100)}% renewable`; }
+    };
+    o.plugins.tooltip.footerColor = ink;
+    mount("cTotal", { type: "bar", data: { labels: yrs, datasets: [
+      { label: "Renewable", data: TOTAL_CAP.map(r => r[2]), backgroundColor: col("biomass"), borderRadius: 2, barPercentage: 0.7, stack: "c", order: 2 },
+      { label: "Other (gas, nuclear, storage, other)", data: TOTAL_CAP.map(r => +(r[1] - r[2]).toFixed(1)), backgroundColor: col("imports") + "aa", borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", barPercentage: 0.7, stack: "c", order: 2 },
+      { type: "line", label: "Growth a year", yAxisID: "y2", data: g.map(v => v == null ? null : +v.toFixed(2)), borderColor: ink, backgroundColor: ink, borderDash: [2, 3], borderWidth: 1.5, pointRadius: 3, pointHoverRadius: 5, tension: 0.2, order: 1, stack: "g" }
+    ] }, options: o });
+  }
+
   function renderCapacity() {
+    renderTotalCap();
     const cap = [
       ["Wind", 33.0, "wind"], ["Gas", 32.4, "gas"], ["Solar", 21.9, "solar"],
       ["Bio, hydro, other renewables", 10.4, "biomass"], ["Nuclear", 5.9, "nuclear"],
@@ -1541,6 +1620,16 @@ footer a { color: var(--accent); }
   const refreshDemand = () => run("dem", () => loadDemand(S.demRange), renderDemand);
   const refreshCI = () => run("ci", () => loadCI(S.ciRange), () => { S.data.ciForecast = S.data.ci ? S.data.ci.fut : null; renderCI(); renderWindows(); });
   const refreshAgile = () => run("agile", loadAgile, renderAgile);
+  try { const v = localStorage.getItem("pylon-agview"); if (v === "ahead" || v === "days") S.agView = v; } catch (e) {}
+  document.querySelectorAll("[data-ag]").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.ag === S.agView));
+    b.addEventListener("click", () => {
+      S.agView = b.dataset.ag;
+      document.querySelectorAll("[data-ag]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      try { localStorage.setItem("pylon-agview", S.agView); } catch (e) {}
+      renderAgile();
+    });
+  });
   const refreshMid = () => run("mid", () => loadMid(S.midRange), renderMid);
   const refreshYoY = () => run("yoy", () => loadYoY(S.range), renderYoY);
 
