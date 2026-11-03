@@ -3,7 +3,7 @@
 A live dashboard for Great Britain's electricity grid: generation mix, net imports, carbon intensity, batteries,
 wind and solar forecasts, demand, Octopus Agile and Tracker prices, wholesale prices, records and installed capacity.
 
-Live site: https://itzbagelx.github.io/Pylon/
+Live site: https://pylongrid.co.uk
 
 ## How it works
 
