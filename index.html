@@ -230,6 +230,8 @@ canvas { touch-action: pan-y; outline: none; }
 .yoy-kv b { font: 700 22px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
 .yoy-kv small { font: 500 12px/1.3 var(--mono); color: var(--muted); }
 .yoy-kv small.good, .yoy-kv small.bad { font-weight: 700; }
+.yoy-swipe { display: none; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+@media (max-width: 640px) { .yoy-swipe { display: block; } .yoy-kv { grid-template-columns: 1fr 1fr; } .yoy-kv b { font-size: 20px; } }
 .good { color: var(--good); } .bad { color: var(--bad); }
 .flex3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 620px) { .flex3 { grid-template-columns: minmax(0, 1fr); } }
@@ -497,6 +499,7 @@ footer a { color: var(--accent); }
           <p class="yoy-per" id="yoyPer">—</p>
           <div class="yoy-kv" id="yoyKv"></div>
           <div class="yoy-wrap"><table class="yoy" id="yoyTable"></table></div>
+          <p class="yoy-swipe">Swipe the table sideways for average output in GW →</p>
           <p class="note" id="yoyNote">Compared with the same days 52 weeks earlier, so weekdays line up.</p>
         </div>
       </div>
@@ -1871,7 +1874,7 @@ footer a { color: var(--accent); }
       `<tr><th>Source</th><th>${curH}</th><th>${lyH}</th><th>Change</th>${hasGW ? `<th class="grp">${curH}</th><th>${lyH}</th><th>Growth</th>` : ""}</tr></thead><tbody>`;
     fuels.forEach(f => {
       const a = y.share[f] || 0, b = y.shareLy[f] || 0, dpts = a - b;
-      html += `<tr><td><i style="background:${col(f)}"></i>${LABEL[f]}${f === "imports" ? " (net)" : ""}</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${tone(f, dpts)}">${signed(dpts)} pts</td>`;
+      html += `<tr><td><i style="background:${col(f)}"></i>${LABEL[f]}</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${tone(f, dpts)}">${signed(dpts)} pts</td>`;
       if (hasGW) html += `<td class="grp">${p1(y.gw[f] || 0)} GW</td><td>${p1(y.gwLy[f] || 0)} GW</td>${growthCell(y.gw[f] || 0, y.gwLy[f] || 0, f)}`;
       html += "</tr>";
     });
@@ -1887,11 +1890,11 @@ footer a { color: var(--accent); }
     const ren = s => RENEW.reduce((a, f) => a + (s[f] || 0), 0);
     const low = s => ren(s) + (s.nuclear || 0);
     const tile = (label, a, b, goodUp, unit = "%", d = a - b) =>
-      `<div><span>${label}</span><b>${p1(a)}${unit}</b><small class="${Math.abs(d) < 0.05 ? "" : (d > 0) === goodUp ? "good" : "bad"}">${signed(d)}${unit === "%" ? " pts" : unit} vs ${p1(b)}${unit}</small></div>`;
+      `<div><span>${label}</span><b>${p1(a)}${unit}</b><small class="${Math.abs(d) < 0.05 ? "" : (d > 0) === goodUp ? "good" : "bad"}">${signed(d)}${unit === "%" ? " pts" : unit}</small><small>was ${p1(b)}${unit}</small></div>`;
     let kv = tile("Low-carbon", low(y.share), low(y.shareLy), true) + tile("Renewables", ren(y.share), ren(y.shareLy), true) + tile("Gas", y.share.gas || 0, y.shareLy.gas || 0, false);
     if (y.use != null) {
       const g = pctCh(y.use, y.useLy);
-      kv += `<div><span>Electricity used</span><b>${p1(y.use)} GW</b><small>${signed(g)}% vs ${p1(y.useLy)} GW</small></div>`;
+      kv += `<div><span>Electricity used</span><b>${p1(y.use)} GW</b><small>${signed(g)}%</small><small>was ${p1(y.useLy)} GW</small></div>`;
     }
     $("yoyKv").innerHTML = kv;
     $("yoyNote").textContent = (y.repo
