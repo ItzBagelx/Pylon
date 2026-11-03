@@ -52,7 +52,13 @@ async function pool(items, n, fn) {
 const readJSON = async (f, d) => { try { return JSON.parse(await fs.readFile(path.join(OUT, f), "utf8")); } catch { return d; } };
 async function write(f, obj) {
   await fs.mkdir(OUT, { recursive: true });
-  const s = JSON.stringify(obj);
+  // arrays and day maps go one item per line, so each hourly commit only changes a few lines and git stores it compactly
+  const s = "{" + Object.entries(obj).map(([k, v]) => {
+    const body = Array.isArray(v) ? "[\n" + v.map(x => JSON.stringify(x)).join(",\n") + "\n]"
+      : v && typeof v === "object" && Object.keys(v).length > 20 ? "{\n" + Object.entries(v).map(([a, b]) => JSON.stringify(a) + ":" + JSON.stringify(b)).join(",\n") + "\n}"
+      : JSON.stringify(v);
+    return JSON.stringify(k) + ":" + body;
+  }).join(",\n") + "}\n";
   await fs.writeFile(path.join(OUT, f), s);
   log("wrote", f, (s.length / 1024).toFixed(0) + " KB");
 }
@@ -211,9 +217,10 @@ function buildDays(mixRows, ic, dem, mid, bat, shift) {
       hydro: +r.HYDRO || 0, biomass: +r.BIOMASS || 0, other: +r.OTHER || 0, solar: +r.SOLAR || 0, storage: +r.STORAGE || 0
     };
     const impG = +r.IMPORTS || 0, dom = (+r.GENERATION || 0) - impG;
-    if (dom <= 0) continue;
+    // skip broken half-hours: GB generation never drops below about 10 GW, and gas and nuclear are never both off
+    if (dom < 8000 || mw.gas + mw.nuclear < 500) continue;
     const f = ic.get(t), exp = f ? f.exp : 0, net = impG - exp, den = dom + Math.max(0, net);
-    const ci = +r.CARBON_INTENSITY, dm = dem.get(t), pr = mid.get(t), b = bat.hh ? bat.hh.get(t) : null;
+    const ci = +r.CARBON_INTENSITY, dm = dem.get(t), pr = mid.get(t), b = bat.hh && t <= now ? bat.hh.get(t) : null;
     let a = days.get(d);
     if (!a) { a = { d, n: 0, s: Object.fromEntries([...FUELS, "dom", "impG", "exp", "net"].map(k => [k, 0])), ci: [0, 0, 1e9, -1e9], dem: [0, 0, 1e9, -1e9], mid: [0, 0, 1e9, -1e9], cib: [0, 0, 0, 0, 0], bat: null, icMissing: 0, rec: emptyRec() }; days.set(d, a); }
     a.n++;
@@ -314,12 +321,17 @@ async function step(name, fn) {
   catch (e) { meta.ok[name] = false; meta.errors[name] = String(e).slice(0, 300); log("FAILED", name, e); return null; }
 }
 
-const state = await readJSON("daily.json", { days: {}, shift: null });
+// bump VERSION whenever the way days are built changes, so the whole history is rebuilt on the next run
+const VERSION = 2;
+let state = await readJSON("daily.json", null);
+if (!state || state.v !== VERSION) state = { v: VERSION, shift: state && state.shift || null, days: {} };
 const today = dkey(now);
 const window = [];
 for (let k = KEEP; k >= 0; k--) window.push(dkey(now - k * DAY));
 const uniqWindow = [...new Set(window)];
-let fromDay = uniqWindow.find(d => !state.days[d] || state.days[d].n < 46) || today;
+// fetch from the first day never fetched before (gaps in NESO's data are tried once, not every hour)
+const tried = d => state.tried && d >= state.tried[0] && d <= state.tried[1];
+let fromDay = uniqWindow.find(d => !state.days[d] && !tried(d)) || today;
 const recent = dkey(now - REBUILD * DAY);
 if (fromDay > recent) fromDay = recent;
 const fromT = ukMidnight(fromDay) - 2 * 36e5;
@@ -340,6 +352,7 @@ if (mixRows && mixRows.length && ic) {
     const prev = state.shift || { summer: 0, winter: 0 };
     state.shift = { summer: s.summer.best ?? prev.summer, winter: s.winter.best ?? prev.winter };
   }
+  state.tried = [state.tried && state.tried[0] < fromDay ? state.tried[0] : fromDay, today];
   const built = buildDays(mixRows, ic, dem || new Map(), mid || new Map(), bat || {}, state.shift || { summer: 0, winter: 0 });
   Object.values(built).forEach(x => {
     if (x.d < fromDay) return;
@@ -371,7 +384,7 @@ if (daysArr.length) {
 
 if (bat) {
   const cut = now - 7 * DAY;
-  const hh = [...bat.hh.entries()].filter(([t]) => t >= cut).sort((a, b) => a[0] - b[0]).map(([t, e]) => [t, r0(e.dis), r0(e.chg)]);
+  const hh = [...bat.hh.entries()].filter(([t]) => t >= cut && t <= now).sort((a, b) => a[0] - b[0]).map(([t, e]) => [t, r0(e.dis), r0(e.chg)]);
   await write("battery.json", { built: meta.built, units: bat.units, capMW: r0(bat.capMW), hh });
 }
 
