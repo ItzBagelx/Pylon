@@ -1,0 +1,40 @@
+name: Keep data fresh
+
+# GitHub's own schedule is best-effort and on this repo has gone hours without firing.
+# This job stays awake for about five and a half hours, starting a data rebuild
+# (pages.yml) every 30 minutes, then hands over to a fresh copy of itself.
+# workflow_dispatch is one of the few events GITHUB_TOKEN is allowed to start,
+# so the chain keeps itself going. The schedule below restarts it if it ever stops.
+# To stop it: disable this workflow in the Actions tab.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 */3 * * *"
+
+permissions:
+  actions: write
+
+# only ever one keep-alive at a time; an extra one waits rather than doubling up
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Rebuild the data every 30 minutes
+        run: |
+          for i in $(seq 1 11); do
+            gh workflow run pages.yml --ref main || echo "Dispatch failed; trying again next round"
+            sleep 1800
+          done
+      - name: Hand over to the next run
+        run: |
+          # skip if another keep-alive is already queued (e.g. started by the schedule)
+          waiting=$(( $(gh run list --workflow keepalive.yml --status queued --json databaseId --jq length) + $(gh run list --workflow keepalive.yml --status pending --json databaseId --jq length) ))
+          if [ "$waiting" = "0" ]; then gh workflow run keepalive.yml --ref main; else echo "Another keep-alive is queued"; fi
