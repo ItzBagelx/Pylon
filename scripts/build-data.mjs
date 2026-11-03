@@ -72,19 +72,13 @@ function csv(text) {
 /* ---------------- sources ---------------- */
 
 async function nesoMix(fromT) {
-  const fields = "DATETIME,GAS,COAL,NUCLEAR,WIND,WIND_EMB,HYDRO,IMPORTS,BIOMASS,OTHER,SOLAR,STORAGE,GENERATION,CARBON_INTENSITY";
-  const want = Math.ceil((now - fromT) / HH) + 200;
-  const out = [];
-  for (let offset = 0; offset < want;) {
-    const limit = Math.min(32000, want - offset);
-    const j = await get(`${NESO}/datastore_search?resource_id=${MIX}&fields=${fields}&sort=DATETIME%20desc&limit=${limit}&offset=${offset}`);
-    const recs = j.result.records;
-    out.push(...recs);
-    log("NESO mix", offset, "+", recs.length, "oldest", recs.length ? recs[recs.length - 1].DATETIME : "-");
-    if (recs.length < limit) break;
-    offset += recs.length;
-  }
-  return out;
+  // the SQL endpoint takes a date filter, so one request covers any range (two years is about 11 MB)
+  const cols = ["DATETIME", "GAS", "COAL", "NUCLEAR", "WIND", "WIND_EMB", "HYDRO", "IMPORTS", "BIOMASS", "OTHER", "SOLAR", "STORAGE", "GENERATION", "CARBON_INTENSITY"];
+  const sql = `SELECT ${cols.map(c => `"${c}"`).join(",")} FROM "${MIX}" WHERE "DATETIME" >= '${iso(fromT).slice(0, 19)}' ORDER BY "DATETIME" DESC`;
+  const j = await get(`${NESO}/datastore_search_sql?sql=${encodeURIComponent(sql)}`);
+  const recs = j.result.records;
+  log("NESO mix rows", recs.length, "latest", recs[0]?.DATETIME, "oldest", recs[recs.length - 1]?.DATETIME);
+  return recs;
 }
 
 async function icFlows(fromT) {
