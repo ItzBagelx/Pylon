@@ -131,6 +131,13 @@ canvas { touch-action: pan-y; outline: none; }
 .lg small { font: 500 11px/1 var(--mono); color: var(--muted); width: 3.4em; text-align: right; flex-shrink: 0; }
 .split-big { font: 700 26px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .lg { display: flex; align-items: center; gap: 8px; font-size: 14px; min-width: 0; }
+/* pie legends: each row is a button linked to its slice */
+.legend.col:has(button.lg) { gap: 1px; }
+button.lg { font: inherit; font-size: 14px; color: inherit; background: transparent; border: 0; width: 100%; text-align: left; padding: 6px 8px; margin: 0 -8px; width: calc(100% + 16px); border-radius: 7px; cursor: pointer; transition: opacity .2s ease, background-color .2s ease; }
+button.lg:hover, button.lg.on { background: var(--surface-2); }
+button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.legend.dim button.lg:not(.on) { opacity: .42; }
+.donut canvas { cursor: default; }
 .lg i { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 .lg span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lg b { font: 600 13px/1 var(--mono); font-variant-numeric: tabular-nums; }
@@ -1419,7 +1426,7 @@ footer a { color: var(--accent); }
     if (typeof Chart === "undefined") return;
     if (S.charts[id]) S.charts[id].destroy();
     cfg.options = cfg.options || {};
-    cfg.options.events = ["pointermove", "pointerdown", "pointerup", "pointerleave"];
+    if (!cfg.options.events) cfg.options.events = ["pointermove", "pointerdown", "pointerup", "pointerleave"];
     const canvas = $(id);
     if (!canvas.$wired) {
       canvas.$wired = true;
@@ -1508,18 +1515,41 @@ footer a { color: var(--accent); }
         ctx.fillStyle = css("--surface"); ctx.globalAlpha = 0.85; ctx.fillRect(a.left + 4, a.top + 2, w + 10, 15);
         ctx.globalAlpha = 1; ctx.fillStyle = css("--warn"); ctx.fillText(o.text, a.left + 9, a.top + 5); ctx.restore();
       } },
-    { // centre label drawn under the tooltip so the tooltip always sits on top
+    { // centre of a donut: the headline figure, or the selected slice's value and name
       id: "center",
       afterDatasetsDraw(chart, _a, o) {
         if (chart.config.type !== "doughnut" || !o || !o.big) return;
         const m = chart.getDatasetMeta(0).data[0]; if (!m) return;
-        const { x, y } = m, r = m.innerRadius, ctx = chart.ctx;
-        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = css("--ink");
-        ctx.font = `700 ${Math.max(14, Math.round(r * 0.46))}px 'Martian Mono', monospace`;
-        ctx.fillText(o.big, x, y - r * 0.12);
-        ctx.fillStyle = css("--muted");
-        ctx.font = `600 ${Math.max(9, Math.round(r * 0.16))}px Archivo, sans-serif`;
-        ctx.fillText(String(o.small || "").toUpperCase(), x, y + r * 0.3);
+        const { x, y } = m, r = m.innerRadius, ctx = chart.ctx, maxW = r * 1.62;
+        const a = pieActive(chart), items = chart.$items || [];
+        let big = o.big, small = o.small, extra = null;
+        if (a >= 0) {
+          const it = items[a], tot = items.reduce((t, i) => t + i.value, 0);
+          big = chart.$fmt(it.value); small = it.label;
+          if (!/%$/.test(big) && tot) extra = Math.round(it.value / tot * 100) + "% of total";
+        }
+        const fit = (txt, weight, size, fam, min) => {
+          ctx.font = `${weight} ${size}px ${fam}`;
+          const w = ctx.measureText(txt).width;
+          return w > maxW ? Math.max(min, Math.floor(size * maxW / w)) : size;
+        };
+        const mono = "'Martian Mono', monospace", sans = "Archivo, sans-serif";
+        const bigSize = fit(big, 700, Math.max(14, Math.round(r * (a >= 0 ? 0.4 : 0.46))), mono, 11);
+        const smSize = Math.max(9, Math.round(r * 0.16));
+        // wrap the name onto two lines if it's too wide
+        ctx.font = `600 ${smSize}px ${sans}`;
+        const words = String(small || "").toUpperCase().split(" "), lines = [];
+        let cur = "";
+        words.forEach(w => { const t = cur ? cur + " " + w : w; if (cur && ctx.measureText(t).width > maxW * 0.92) { lines.push(cur); cur = w; } else cur = t; });
+        if (cur) lines.push(cur);
+        if (lines.length > 2) lines.splice(1, lines.length, lines.slice(1).join(" "));
+        const rows = [{ t: big, f: `700 ${bigSize}px ${mono}`, c: css("--ink"), h: bigSize * 1.12 }];
+        lines.forEach((l, i) => rows.push({ t: l, f: `600 ${fit(l, 600, smSize, sans, 8)}px ${sans}`, c: css("--muted"), h: smSize * 1.35, gap: i ? 0 : r * 0.1 }));
+        if (extra) rows.push({ t: extra, f: `500 ${Math.max(9, Math.round(r * 0.14))}px ${mono}`, c: css("--muted"), h: smSize * 1.35, gap: r * 0.04 });
+        const total = rows.reduce((t, rw) => t + rw.h + (rw.gap || 0), 0);
+        let cy = y - total / 2;
+        ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        rows.forEach(rw => { cy += rw.gap || 0; ctx.font = rw.f; ctx.fillStyle = rw.c; ctx.fillText(rw.t, x, cy + rw.h / 2); cy += rw.h; });
         ctx.restore();
       } }
   ];
@@ -1529,27 +1559,80 @@ footer a { color: var(--accent); }
   }
 
   function legend(id, items, fmt, sub) {
-    $(id).innerHTML = items.map(it => `<div class="lg"><i style="background:${it.color}"></i><span>${it.label}</span><b>${fmt(it.value)}</b>${sub ? `<small>${sub(it)}</small>` : ""}</div>`).join("");
+    $(id).innerHTML = items.map((it, i) => `<button type="button" class="lg" data-i="${i}" aria-pressed="false"><i style="background:${it.color}"></i><span>${it.label}</span><b>${fmt(it.value)}</b>${sub ? `<small>${sub(it)}</small>` : ""}</button>`).join("");
+  }
+
+  /* Pie selection: hover (mouse) previews a slice, tap/click pins it, tap again or tap elsewhere to clear.
+     The state lives on the canvas so it survives the charts being rebuilt when data refreshes. */
+  const fade = c => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(c) ? c.slice(0, 7) + "30" : c;
+  function pieActive(chart) {
+    const cv = chart.canvas, lab = cv.$hov != null ? cv.$hov : cv.$pin;
+    return lab == null ? -1 : (chart.$items || []).findIndex(i => i.label === lab);
+  }
+  function pieSync(id, redraw = true) {
+    const ch = S.charts[id]; if (!ch) return;
+    const cv = ch.canvas, a = pieActive(ch), lg = cv.$legend;
+    if (lg) {
+      lg.classList.toggle("dim", a >= 0);
+      lg.querySelectorAll(".lg[data-i]").forEach(r => {
+        const it = ch.$items[+r.dataset.i];
+        r.classList.toggle("on", +r.dataset.i === a);
+        r.setAttribute("aria-pressed", String(!!it && it.label === cv.$pin));
+      });
+    }
+    if (redraw) ch.update();
+  }
+  function pinPie(id, lab) {
+    Object.keys(S.charts).forEach(k => {
+      const cv = S.charts[k].canvas;
+      if (k !== id && cv.$pie && cv.$pin != null) { cv.$pin = null; pieSync(k); }
+    });
+    const cv = $(id); cv.$pin = lab; pieSync(id);
+  }
+  function wirePie(id) {
+    const cv = $(id); if (cv.$pie) return;
+    cv.$pie = true;
+    const card = cv.closest(".card"), lg = card && card.querySelector(".legend");
+    cv.$legend = lg;
+    const hit = e => {
+      const ch = S.charts[id]; if (!ch) return null;
+      const els = ch.getElementsAtEventForMode(e, "nearest", { intersect: true }, false);
+      return els.length ? ch.$items[els[0].index].label : null;
+    };
+    const hover = lab => { if (lab !== cv.$hov) { cv.$hov = lab; pieSync(id); } };
+    cv.addEventListener("pointermove", e => { if (e.pointerType !== "mouse") return; const lab = hit(e); cv.style.cursor = lab != null ? "pointer" : ""; hover(lab); });
+    cv.addEventListener("pointerleave", () => hover(null));
+    cv.addEventListener("click", e => { const lab = hit(e); pinPie(id, lab == null || lab === cv.$pin ? null : lab); });
+    if (!lg) return;
+    const rowLab = e => { const r = e.target.closest && e.target.closest(".lg[data-i]"); const ch = S.charts[id]; return r && ch && ch.$items[+r.dataset.i] ? ch.$items[+r.dataset.i].label : null; };
+    lg.addEventListener("pointerover", e => { if (e.pointerType === "mouse") hover(rowLab(e)); });
+    lg.addEventListener("pointerleave", e => { if (e.pointerType === "mouse") hover(null); });
+    lg.addEventListener("focusin", e => { if (e.target.matches(":focus-visible")) hover(rowLab(e)); });
+    lg.addEventListener("focusout", () => hover(null));
+    lg.addEventListener("click", e => { const lab = rowLab(e); if (lab != null) pinPie(id, lab === cv.$pin ? null : lab); });
   }
   function donut(id, items, center, fmt) {
-    const surf = css("--surface");
+    const surf = css("--surface"), base = items.map(i => i.color);
+    const pick = ctx => pieActive(ctx.chart);
     mount(id, {
       type: "doughnut",
-      data: { labels: items.map(i => i.label), datasets: [{ data: items.map(i => +i.value.toFixed(2)), backgroundColor: items.map(i => i.color), borderColor: surf, borderWidth: 2, hoverOffset: 8, hoverBorderColor: surf, borderRadius: 2 }] },
+      data: { labels: items.map(i => i.label), datasets: [{ data: items.map(i => +i.value.toFixed(2)),
+        backgroundColor: ctx => { const a = pick(ctx); return a < 0 || ctx.dataIndex === a ? base[ctx.dataIndex] : fade(base[ctx.dataIndex]); },
+        offset: ctx => ctx.dataIndex === pick(ctx) ? 9 : 0,
+        borderColor: surf, borderWidth: 2, hoverOffset: 9, hoverBorderColor: surf, borderRadius: 2 }] },
       options: {
-        responsive: true, maintainAspectRatio: false, cutout: "64%", layout: { padding: 10 },
-        animation: { duration: 400 },
-        interaction: { mode: "nearest", intersect: true },
-        plugins: {
-          legend: { display: false }, center,
-          tooltip: {
-            backgroundColor: css("--surface"), titleColor: css("--ink"), bodyColor: css("--ink"), borderColor: css("--line"), borderWidth: 1,
-            padding: 10, boxPadding: 4, caretSize: 6, displayColors: true, bodyFont: { family: "Martian Mono", size: 11 },
-            callbacks: { title: () => "", label: c => ` ${c.label}: ${fmt(c.parsed)}` }
-          }
-        }
+        responsive: true, maintainAspectRatio: false, cutout: "64%", layout: { padding: 2 },
+        animation: { duration: 280 }, events: [],
+        plugins: { legend: { display: false }, tooltip: { enabled: false }, center }
       }
     });
+    const ch = S.charts[id]; if (!ch) return;
+    ch.$items = items; ch.$fmt = fmt;
+    wirePie(id);
+    // a pinned slice that has dropped out of the data is forgotten
+    const cv = ch.canvas;
+    if (cv.$pin != null && !items.some(i => i.label === cv.$pin)) cv.$pin = null;
+    queueMicrotask(() => pieSync(id, false));
   }
   function emptyChart(id) { if (S.charts[id]) { S.charts[id].destroy(); delete S.charts[id]; } }
 
@@ -1638,10 +1721,10 @@ footer a { color: var(--accent); }
       : [{ label: "Generated in GB", value: self, color: css("--accent") }, { label: "Net imports", value: imp, color: col("imports") }];
     donut("dImp", impItems, { big: Math.round(self) + "%", small: "home-grown" }, pctF);
     const gb = css("--accent");
-    $("impLegend").innerHTML = `<div class="lg"><i style="background:${gb}"></i><span>Generated in GB</span><b>${pctF(self)}</b></div>` +
+    $("impLegend").innerHTML = `<button type="button" class="lg" data-i="0" aria-pressed="false"><i style="background:${gb}"></i><span>Generated in GB</span><b>${pctF(self)}</b></button>` +
       (exporting
-        ? `<div class="lg"><i style="background:${css("--good")}"></i><span>Net exports</span><b>${pie.netGW == null ? "—" : p1(-pie.netGW) + " GW"}</b></div>`
-        : `<div class="lg"><i style="background:${col("imports")}"></i><span>Net imports</span><b>${pctF(imp)}</b></div>`);
+        ? `<div class="lg" style="padding:6px 0"><i style="background:${css("--good")}"></i><span>Net exports</span><b>${pie.netGW == null ? "—" : p1(-pie.netGW) + " GW"}</b></div>`
+        : `<button type="button" class="lg" data-i="1" aria-pressed="false"><i style="background:${col("imports")}"></i><span>Net imports</span><b>${pctF(imp)}</b></button>`);
     $("impNote").textContent = `GB generation as a share of what GB used ${when}.` +
       (pie.imp != null ? ` Interconnectors right now: ${p1(pie.imp)} GW in, ${p1(pie.exp)} GW out, ${netTxt}.` : netTxt ? ` Average ${netTxt}.` : "") +
       (exporting ? " Above 100% means GB made more than it needed." : "") + (pie.sampled ? " Estimated from days spread through the year." : "");
@@ -2444,6 +2527,10 @@ footer a { color: var(--accent); }
 
   window.addEventListener("scroll", () => clearAllCharts(), { passive: true });
   document.addEventListener("pointerdown", e => { if (!(e.target && e.target.closest && e.target.closest("canvas"))) clearAllCharts(); }, { passive: true });
+  document.addEventListener("click", e => {
+    if (e.target && e.target.closest && e.target.closest(".donut, .legend")) return;
+    Object.keys(S.charts).forEach(k => { const cv = S.charts[k].canvas; if (cv.$pie && cv.$pin != null) { cv.$pin = null; pieSync(k); } });
+  });
   try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerenderAll); } catch (e) {}
   new MutationObserver(rerenderAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 

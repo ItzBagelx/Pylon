@@ -1,0 +1,26 @@
+name: Browser check
+on:
+  push:
+    branches: [probe]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
+      - run: |
+          SITE="https://itzbagelx.github.io/Pylon/?v=$(date +%s)" node scripts/check.mjs
+      - name: Save screenshots to a side branch
+        if: always()
+        run: |
+          mkdir -p /tmp/shots && cp *.png /tmp/shots/ && cd /tmp/shots
+          git init -q && git checkout -q -b probe-shots
+          git config user.name "pylon-check" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -q -m "screenshots"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" probe-shots
