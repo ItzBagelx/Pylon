@@ -15,11 +15,14 @@ jobs:
           node-version: 22
       - run: npm i --no-save playwright@1.48.2 && npx playwright install --with-deps chromium
       - run: |
-          SITE="https://itzbagelx.github.io/Pylon/?v=$(date +%s)" node scripts/check.mjs
+          (python3 -m http.server 8765 >/dev/null 2>&1 &) ; sleep 2
+          node scripts/check.cjs | tee check.txt
       - name: Save screenshots to a side branch
         if: always()
         run: |
-          mkdir -p /tmp/shots && cp *.png /tmp/shots/ && cd /tmp/shots
+          mkdir -p /tmp/shots
+          cp *.png check.txt /tmp/shots/ || true
+          cd /tmp/shots
           git init -q && git checkout -q -b probe-shots
           git config user.name "pylon-check" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A && git commit -q -m "screenshots"
