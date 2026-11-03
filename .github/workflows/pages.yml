@@ -1,18 +1,22 @@
-name: Deploy to GitHub Pages
+name: Build data and deploy
 
+# Runs every hour to refresh the data files in data/, and on every push to main.
+# Pushes made by this workflow use GITHUB_TOKEN, which doesn't start another run.
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -20,9 +24,31 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Check out site
         uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build data files
+        run: node scripts/build-data.mjs
+        continue-on-error: true
+
+      - name: Save data to the repo
+        run: |
+          git config user.name "pylon-data-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then echo "No data changes"; exit 0; fi
+          git commit -q -m "Update grid data"
+          for i in 1 2 3; do
+            git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && break
+            sleep 5
+          done
 
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
