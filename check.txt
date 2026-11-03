@@ -1,0 +1,9 @@
+desk dMix on: 1 pinned: [ 'Biomass' ]
+desk dMix after outside tap on: 0
+desk dCap on: 1 pinned: [ 'Bio, hydro, other renewables' ]
+desk dCap after outside tap on: 0
+phone dMix on: 1 pinned: [ 'Biomass' ]
+phone dMix after outside tap on: 0
+phone dCap on: 1 pinned: [ 'Bio, hydro, other renewables' ]
+phone dCap after outside tap on: 0
+no page errors
