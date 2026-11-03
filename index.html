@@ -220,6 +220,16 @@ canvas { touch-action: pan-y; outline: none; }
 .yoy th:first-child, .yoy td:first-child { text-align: left; font-family: var(--body); font-size: 14px; }
 .yoy td:first-child i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
 .yoy .grp { border-left: 1px solid var(--line); }
+.yoy thead tr:first-child th { text-align: center; color: var(--ink); border-bottom: 0; padding-bottom: 0; }
+.yoy tr.tot td { font-weight: 700; border-top: 2px solid var(--line); }
+.yoy-per { margin: -4px 0 12px; font: 500 12px/1.4 var(--mono); color: var(--muted); }
+.yoy-per b { color: var(--ink); font-weight: 600; }
+.yoy-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.yoy-kv div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.yoy-kv span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.yoy-kv b { font: 700 22px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.yoy-kv small { font: 500 12px/1.3 var(--mono); color: var(--muted); }
+.yoy-kv small.good, .yoy-kv small.bad { font-weight: 700; }
 .good { color: var(--good); } .bad { color: var(--bad); }
 .flex3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 620px) { .flex3 { grid-template-columns: minmax(0, 1fr); } }
@@ -478,7 +488,14 @@ footer a { color: var(--accent); }
           <p class="note" id="sumNote">Average share over the selected period.</p>
         </div>
         <div class="card s12" data-info="yoy" data-fresh="yoy">
-          <div class="card-head"><h3 id="yoyTitle">Generation vs the same period a year earlier</h3><span class="tag" id="tagYoY">—</span></div>
+          <div class="card-head"><h3 id="yoyTitle">Generation, the last 12 months vs the 12 months before</h3>
+            <div class="tools"><div class="seg" role="group" aria-label="Year-on-year comparison">
+              <button type="button" data-yoy="8760" aria-pressed="true">Last 12 months</button>
+              <button type="button" data-yoy="720" aria-pressed="false">Last 30 days</button>
+            </div><span class="tag" id="tagYoY">—</span></div>
+          </div>
+          <p class="yoy-per" id="yoyPer">—</p>
+          <div class="yoy-kv" id="yoyKv"></div>
           <div class="yoy-wrap"><table class="yoy" id="yoyTable"></table></div>
           <p class="note" id="yoyNote">Compared with the same days 52 weeks earlier, so weekdays line up.</p>
         </div>
@@ -756,7 +773,7 @@ footer a { color: var(--accent); }
   };
 
   const $ = id => document.getElementById(id);
-  const S = { batRange: 24, recPeriod: "month", agView: "ahead", pieRange: 0, range: 24, unit: "pct", demRange: 168, midRange: 168, ciRange: 24, region: "C", live: {}, data: {}, charts: {} };
+  const S = { batRange: 24, recPeriod: "month", agView: "ahead", pieRange: 0, range: 24, yoyRange: 8760, unit: "pct", demRange: 168, midRange: 168, ciRange: 24, region: "C", live: {}, data: {}, charts: {} };
   try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
 
   /* ---------- helpers ---------- */
@@ -859,7 +876,7 @@ footer a { color: var(--accent); }
     ic: "<p>Undersea cables linking GB to France, Belgium, the Netherlands, Denmark, Norway and Ireland. Positive numbers flow into GB; negative numbers are exports.</p><p>Power flows towards whichever side is more expensive at the time.</p>",
     history: "<p>How the mix changed over time. <b>Share %</b> is each source's share of what GB used. <b>Output GW</b> is the power actually produced, including NESO's estimates for solar and small wind farms.</p><p>Up to 7 days uses live half-hourly data. 30 days and 1 year use daily and weekly summaries rebuilt every hour, so they load instantly.</p>",
     summary: "<p>The average mix over the whole period. Imports only count if GB imported more than it exported over the period as a whole.</p>",
-    yoy: "<p>This period compared with the same days 52 weeks earlier, so weekdays line up. It uses whole days from the hourly summaries.</p><p><b>pts</b> means percentage points: going from 30% to 33% is +3 pts. <b>Growth</b> compares average output in GW, so +10% means 10% more power than a year earlier.</p><p>Green means a move towards cleaner power; red means a move towards gas.</p>",
+    yoy: "<p><b>Last 12 months</b> compares the last 52 whole weeks (Monday to Sunday) with the 52 weeks before them. <b>Last 30 days</b> compares the last 30 whole days with the same 30 days 52 weeks earlier, so weekdays line up. The part-week or part-day so far is left out, so both sides are complete.</p><p><b>Made in GB</b> is home-grown generation as a share of what GB used, with imports counted net of exports; above 100% means GB was a net exporter.</p><p><b>pts</b> means percentage points: going from 30% to 33% is +3 pts. <b>Growth</b> compares average output in GW, so +10% means 10% more power than a year earlier.</p><p>Green means a move towards cleaner power; red means a move towards gas.</p>",
     demand: "<p><b>National demand</b> is the electricity drawn from the transmission network by homes and businesses. Rooftop solar and small wind farms reduce it, which is why it dips around midday on sunny days.</p><p>Long ranges show the average line with a shaded band from each period's lowest to highest half-hour. The dotted line is the same time a year earlier.</p>",
     demand_figs: "<p><b>Peak vs low</b> is the average gap between each day's busiest and quietest half-hour. The early-evening peak, around 5pm to 6pm, is the hardest time of day for the grid.</p>",
     agile: "<p>Each bar is one half-hour's Agile unit rate for your region, including VAT. Outlined bars are the cheapest window for the run time you choose. The dashed line is that day's Octopus Tracker rate.</p><p>Agile is capped at 100p per kWh and can go below zero, when you're paid to use power.</p>",
@@ -1326,22 +1343,42 @@ footer a { color: var(--accent); }
     return { pts: cur.value, ly: ly.status === "fulfilled" ? ly.value : [] };
   }
 
-  // Generation this period vs the same weeks a year earlier: shares from NESO, output in GW from Elexon (up to 30 days)
+  // Generation year on year, two fixed comparisons:
+  //   12 months: the last 52 whole weeks vs the 52 weeks before (weekly summaries)
+  //   30 days:   the last 30 whole days vs the same days 52 weeks earlier (daily summaries)
+  const shiftKey = (k, d) => new Date(Date.parse(k + "T12:00:00Z") + d * DAY).toISOString().slice(0, 10);
+  function yoyPack(cur, ly, built, unit, per) {
+    const a = combineMw(cur), b = combineMw(ly);
+    return { repo: true, built, unit, nCur: cur.length, nLy: ly.length, per,
+      share: sharesOf(a), shareLy: sharesOf(b), gw: gwOf(a), gwLy: gwOf(b), self: selfOf(a), selfLy: selfOf(b),
+      dom: a.dom / 1000, domLy: b.dom / 1000, use: (a.dom + Math.max(0, a.net)) / 1000, useLy: (b.dom + Math.max(0, b.net)) / 1000 };
+  }
   async function loadYoY(hours) {
-    // whole days (or weeks for a year) from the hourly summaries, compared with the same days 52 weeks earlier
-    const sm = await summary(hours, { fullDays: hours < 720 }).catch(() => null);
-    if (sm && sm.ly.length) {
-      const a = combineMw(sm.cur), b = combineMw(sm.ly);
-      return { repo: true, built: sm.built, span: sm.cur.length + (sm.ms === WEEK ? " weeks" : sm.cur.length === 1 ? " day" : " days"), from: sm.cur[0].key, to: sm.cur[sm.cur.length - 1].key,
-        share: sharesOf(a), shareLy: sharesOf(b), gw: gwOf(a), gwLy: gwOf(b), self: selfOf(a), selfLy: selfOf(b) };
+    if (hours >= YEAR) {
+      const W = await repo("weekly").catch(() => null);
+      const full = W && W.weeks ? W.weeks.filter(w => w.days === 7 && w.mw && w.n) : [];
+      const cur = full.slice(-52);
+      if (cur.length >= 50) {
+        const lyFrom = shiftKey(cur[0].w, -364);
+        const ly = full.filter(w => w.w >= lyFrom && w.w < cur[0].w);
+        if (ly.length >= 48) return yoyPack(cur, ly, W.built, "weeks",
+          [cur[0].w, shiftKey(cur[cur.length - 1].w, 6), ly[0].w, shiftKey(ly[ly.length - 1].w, 6)]);
+      }
+    } else {
+      const sm = await summary(720, { fullDays: true }).catch(() => null);
+      if (sm && sm.ly.length >= 25) return yoyPack(sm.cur, sm.ly, sm.built, "days",
+        [sm.cur[0].key, sm.cur[sm.cur.length - 1].key, sm.ly[0].key, sm.ly[sm.ly.length - 1].key]);
     }
+    // fallback if the summaries are missing: live NESO shares (and Elexon output for 30 days)
     const now = new Date(), from = new Date(now - hours * 36e5);
     const avg = pts => { const o = {}; ORDER.forEach(f => o[f] = pts.reduce((a, p) => a + (p.v[f] || 0), 0) / pts.length); return o; };
     const [cur, ly, icC, icL] = await Promise.all([ciGenRange(from, now), ciGenRange(ago(from), ago(now)),
       icFlows(from, now).catch(() => null), icFlows(ago(from), ago(now)).catch(() => null)]);
     const mC = icC && netModel(cur, icC), mL = icL && netModel(ly, icL);
+    const k = t => ukDay.format(t);
     const out = mC && mL ? { share: netPct(avg(cur), mC.self), shareLy: netPct(avg(ly), mL.self), self: mC.self, selfLy: mL.self }
       : { share: avg(cur), shareLy: avg(ly) };
+    out.per = [k(from), k(now), k(ago(from)), k(ago(now))];
     if (hours <= 720) {
       // stop 3 hours short so the lagging solar estimate is complete in both periods
       const end = new Date(now - 3 * 36e5);
@@ -1814,36 +1851,53 @@ footer a { color: var(--accent); }
     }).join("");
   }
 
+  const dmy = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const dKey = k => dmy.format(new Date(Date.parse(k + "T12:00:00Z")));
   function renderYoY() {
-    const y = S.data.yoy, h = S.range;
-    $("yoyTitle").textContent = y && y.repo && h < 720
-      ? `Generation, ${y.span === "1 day" ? "yesterday" : "the last " + y.span} vs the same days a year earlier`
-      : h >= YEAR ? "Generation, the last 12 months vs the 12 months before" : `Generation, ${rangeTxt(h)} vs the same period a year earlier`;
-    setTag("tagYoY", !!y, "Year on year");
-    if (!y) { $("yoyTable").innerHTML = ""; setFresh("yoy", null); return; }
+    const y = S.data.yoy, yr = S.yoyRange >= YEAR;
+    $("yoyTitle").textContent = yr ? "Generation, the last 12 months vs the 12 months before" : "Generation, the last 30 days vs the same 30 days a year earlier";
+    setTag("tagYoY", !!y, yr ? "52 weeks" : "30 days");
+    if (!y) { $("yoyTable").innerHTML = ""; $("yoyKv").innerHTML = ""; $("yoyPer").textContent = "Not available right now"; setFresh("yoy", null); return; }
     if (y.built) setFresh("yoy", y.built, "summary", 120); else setFresh("yoy", new Date(), "data", 60);
+    const [c0, c1, l0, l1] = y.per || [];
+    $("yoyPer").innerHTML = c0 ? `<b>${dKey(c0)} – ${dKey(c1)}</b> vs ${dKey(l0)} – ${dKey(l1)}` : "";
+    const curH = yr ? "Last 12 months" : "Last 30 days", lyH = yr ? "12 months before" : "A year earlier";
     const cleanSet = new Set(["wind", "solar", "hydro", "biomass", "nuclear"]);
     const tone = (f, dv) => Math.abs(dv) < 0.05 ? "" : cleanSet.has(f) ? (dv > 0 ? "good" : "bad") : f === "gas" ? (dv > 0 ? "bad" : "good") : "";
     const fuels = ORDER.filter(f => (y.share[f] || 0) > 0.05 || (y.shareLy[f] || 0) > 0.05).sort((a, b) => y.share[b] - y.share[a]);
     const hasGW = !!y.gw;
-    let html = `<thead><tr><th>Source</th><th>Share now</th><th>A year earlier</th><th>Change</th>${hasGW ? '<th class="grp">Output now</th><th>A year earlier</th><th>Growth</th>' : ""}</tr></thead><tbody>`;
+    const growthCell = (g, gl, f) => { const gr = gl > 0.05 ? pctCh(g, gl) : null; return `<td class="${gr == null ? "" : tone(f, gr)}">${gr == null ? "—" : signed(gr) + "%"}</td>`; };
+    let html = `<thead><tr><th></th><th colspan="3">Share of electricity used</th>${hasGW ? '<th colspan="3" class="grp">Average output</th>' : ""}</tr>` +
+      `<tr><th>Source</th><th>${curH}</th><th>${lyH}</th><th>Change</th>${hasGW ? `<th class="grp">${curH}</th><th>${lyH}</th><th>Growth</th>` : ""}</tr></thead><tbody>`;
     fuels.forEach(f => {
       const a = y.share[f] || 0, b = y.shareLy[f] || 0, dpts = a - b;
-      html += `<tr><td><i style="background:${col(f)}"></i>${LABEL[f]}</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${tone(f, dpts)}">${signed(dpts)} pts</td>`;
-      if (hasGW) {
-        const g = y.gw[f] || 0, gl = y.gwLy[f] || 0;
-        const growth = gl > 0.05 ? pctCh(g, gl) : null;
-        html += `<td class="grp">${p1(g)} GW</td><td>${p1(gl)} GW</td><td class="${growth == null ? "" : tone(f, growth)}">${growth == null ? "—" : signed(growth) + "%"}</td>`;
-      }
+      html += `<tr><td><i style="background:${col(f)}"></i>${LABEL[f]}${f === "imports" ? " (net)" : ""}</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${tone(f, dpts)}">${signed(dpts)} pts</td>`;
+      if (hasGW) html += `<td class="grp">${p1(y.gw[f] || 0)} GW</td><td>${p1(y.gwLy[f] || 0)} GW</td>${growthCell(y.gw[f] || 0, y.gwLy[f] || 0, f)}`;
       html += "</tr>";
     });
+    if (y.self != null) {
+      const a = y.self * 100, b = y.selfLy * 100, d = a - b;
+      html += `<tr class="tot"><td>Made in GB</td><td>${p1(a)}%</td><td>${p1(b)}%</td><td class="${Math.abs(d) < 0.05 ? "" : d > 0 ? "good" : "bad"}">${signed(d)} pts</td>`;
+      if (hasGW && y.dom != null) html += `<td class="grp">${p1(y.dom)} GW</td><td>${p1(y.domLy)} GW</td>${growthCell(y.dom, y.domLy, "")}`;
+      else if (hasGW) html += `<td class="grp">—</td><td>—</td><td>—</td>`;
+      html += "</tr>";
+    }
     $("yoyTable").innerHTML = html + "</tbody>";
+    // headline tiles
     const ren = s => RENEW.reduce((a, f) => a + (s[f] || 0), 0);
     const low = s => ren(s) + (s.nuclear || 0);
-    const selfTxt = y.self != null ? ` Home-grown ${p1(y.self * 100)}% vs ${p1(y.selfLy * 100)}%.` : "";
-    $("yoyNote").textContent = `Low-carbon share ${p1(low(y.share))}% vs ${p1(low(y.shareLy))}% a year earlier; renewables ${p1(ren(y.share))}% vs ${p1(ren(y.shareLy))}%; gas ${p1(y.share.gas)}% vs ${p1(y.shareLy.gas)}%.${selfTxt} Imports are net of exports. Compared with the same days 52 weeks earlier so weekdays line up.` +
-      (y.repo ? ` Based on whole ${y.span.endsWith("weeks") ? "weeks" : "days"} from NESO's historic generation mix, including small wind farms and solar.` :
-        hasGW ? " Output is the average in GW: Elexon's metered plant plus NESO's estimates for solar and small wind farms." : " Output in GW is shown for ranges up to 30 days.");
+    const tile = (label, a, b, goodUp, unit = "%", d = a - b) =>
+      `<div><span>${label}</span><b>${p1(a)}${unit}</b><small class="${Math.abs(d) < 0.05 ? "" : (d > 0) === goodUp ? "good" : "bad"}">${signed(d)}${unit === "%" ? " pts" : unit} vs ${p1(b)}${unit}</small></div>`;
+    let kv = tile("Low-carbon", low(y.share), low(y.shareLy), true) + tile("Renewables", ren(y.share), ren(y.shareLy), true) + tile("Gas", y.share.gas || 0, y.shareLy.gas || 0, false);
+    if (y.use != null) {
+      const g = pctCh(y.use, y.useLy);
+      kv += `<div><span>Electricity used</span><b>${p1(y.use)} GW</b><small>${signed(g)}% vs ${p1(y.useLy)} GW</small></div>`;
+    }
+    $("yoyKv").innerHTML = kv;
+    $("yoyNote").textContent = (y.repo
+      ? (yr ? `Whole weeks, Monday to Sunday (${y.nCur} vs ${y.nLy}); this week so far is left out.` : `Whole days (${y.nCur} vs ${y.nLy}), matched to the same days 52 weeks earlier so weekdays line up; today so far is left out.`) +
+        " From NESO's historic generation mix, including small wind farms and solar. Shares are of electricity used, with imports counted net of exports."
+      : "Live fallback while the summaries are unavailable. Shares are of electricity used, with imports counted net of exports.");
   }
 
   function priceColour(v) {
@@ -2327,7 +2381,7 @@ footer a { color: var(--accent); }
   const refreshBat = () => run("bat", () => repo("battery").then(B => { if (!B.hh || !B.hh.length) throw new Error("empty"); return B; }), renderBattery);
   const refreshFc = () => run("fc", () => repo("forecast"), renderForecast);
   const refreshRec = () => run("rec", () => repo("records"), renderRecords);
-  const refreshYoY = () => run("yoy", () => loadYoY(S.range), renderYoY);
+  const refreshYoY = () => run("yoy", () => loadYoY(S.yoyRange), renderYoY);
 
   // every 5 minutes refresh the live panels; ranges of 30 days or more only every 30 minutes
   let cycle = 0;
@@ -2337,7 +2391,7 @@ footer a { color: var(--accent); }
     return Promise.allSettled([
       refreshNow(), refreshAgile(),
       S.pieRange && due(S.pieRange) ? refreshPies() : null,
-      due(S.range) ? refreshHistory() : null, due(S.range) ? refreshYoY() : null,
+      due(S.range) ? refreshHistory() : null, due(720) ? refreshYoY() : null,
       due(S.demRange) ? refreshDemand() : null, due(S.ciRange) ? refreshCI() : null, due(S.midRange) ? refreshMid() : null,
       due(720) ? refreshBat() : null, due(720) ? refreshFc() : null, due(720) ? refreshRec() : null
     ]);
@@ -2349,7 +2403,7 @@ footer a { color: var(--accent); }
   }
 
   // segmented controls: data-attribute → state key → refresh
-  const TAGS = { pie: ["tagMix", "tagImp", "tagClean", "tagRen"], range: ["tagHist", "tagSum", "tagYoY"], unit: ["tagHist", "tagSum"], dem: ["tagDem", "tagDemS"], mid: ["tagMid"], ci: ["tagCIh", "tagCIs"] };
+  const TAGS = { pie: ["tagMix", "tagImp", "tagClean", "tagRen"], range: ["tagHist", "tagSum"], yoy: ["tagYoY"], unit: ["tagHist", "tagSum"], dem: ["tagDem", "tagDemS"], mid: ["tagMid"], ci: ["tagCIh", "tagCIs"] };
   function syncHistButtons() {}
   function seg(attr, key, refresh, before) {
     document.querySelectorAll(`[data-${attr}]`).forEach(b => b.addEventListener("click", () => {
@@ -2363,7 +2417,8 @@ footer a { color: var(--accent); }
     }));
   }
   seg("pie", "pieRange", refreshPies, () => { S.data.pieOk = false; });
-  seg("range", "range", () => { refreshHistory(); refreshYoY(); }, () => { S.data.histOk = false; S.data.yoyOk = false; });
+  seg("range", "range", refreshHistory, () => { S.data.histOk = false; });
+  seg("yoy", "yoyRange", refreshYoY, () => { S.data.yoyOk = false; });
   seg("unit", "unit", refreshHistory, () => { S.data.histOk = false; });
   seg("dem", "demRange", refreshDemand, () => { S.data.demOk = false; });
   seg("mid", "midRange", refreshMid, () => { S.data.midOk = false; });
