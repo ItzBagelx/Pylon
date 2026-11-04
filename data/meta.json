@@ -1,5 +1,5 @@
-{"built":"2026-11-04T09:17:23.018Z",
-"ok":{"demand":true,"prices":true,"nesoMix":true,"interconnectors":true,"batteries":true,"windForecast":true,"embeddedForecast":true,"demandUpdate":true},
+{"built":"2026-11-04T09:47:27.371Z",
+"ok":{"prices":true,"demand":true,"nesoMix":true,"interconnectors":true,"batteries":true,"windForecast":true,"demandUpdate":true,"embeddedForecast":true},
 "errors":{},
 "days":761,
 "first":"2024-10-05",
