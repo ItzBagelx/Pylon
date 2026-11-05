@@ -1,6 +1,6 @@
 # Pylon
 
-A live dashboard for Great Britain's electricity grid: generation mix, net imports, carbon intensity, batteries,
+A live dashboard for Great Britain's electricity grid: generation mix, net imports, batteries,
 wind and solar forecasts, demand, Octopus Agile and Tracker prices, wholesale prices, records and installed capacity.
 
 Live site: https://pylongrid.co.uk
@@ -21,6 +21,15 @@ Live site: https://pylongrid.co.uk
 | `data/embedded.json` | NESO's embedded wind and solar estimates and forecast |
 | `data/forecast.json` | Wind and solar forecast, plus the last 48 hours |
 | `data/daily.json` | The builder's full state (two years of days) |
+
+## Price views
+
+- Agile shows published half-hourly rates for the next 24 hours or today and tomorrow.
+- Its 7-day history uses hourly averages; its 30-day history uses daily averages. Both cover complete UK calendar days
+  before today. Shaded bands retain half-hourly lows and highs, and missing periods remain gaps.
+- Tracker has a separate daily-price chart, 7-day and 30-day history, today/tomorrow rates when published, and a tariff-version selector.
+- Rates include VAT and exclude standing charges. Comparisons use the same available hours with equal consumption;
+  they are not personalised bill estimates. UK clock changes are included in duration-weighted averages.
 
 ## Data sources
 

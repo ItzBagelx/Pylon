@@ -12,7 +12,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg" sizes="any">
 <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Live view of Great Britain's electricity grid: generation mix, carbon intensity, Octopus Agile prices and installed capacity.">
+<meta name="description" content="Live view of Great Britain's electricity grid: generation mix, Octopus Agile and Tracker prices, demand and installed capacity.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Martian+Mono:wdth,wght@87.5,400;87.5,600;100,700&display=swap">
 <style>
@@ -109,18 +109,12 @@ h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-tr
 .note { margin: 0; font-size: 13px; color: var(--muted); max-width: 75ch; }
 
 /* Hero: right now */
-.now { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; }
-@media (max-width: 980px) { .now { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .now .mixcard { grid-column: span 2; order: 3; } }
-@media (max-width: 620px) { .now { grid-template-columns: minmax(0, 1fr); } .now .mixcard { grid-column: auto; } }
+.now { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start; gap: 14px; }
+.agile-now { gap: 10px; }
+.agile-now .big { font-size: clamp(42px, 5vw, 56px); }
+@media (max-width: 760px) { .now { grid-template-columns: minmax(0, 1fr); } }
 .big { font: 700 clamp(46px, 7vw, 68px)/0.95 var(--mono); font-variation-settings: "wdth" 87.5; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
 .unit { font: 500 13px/1.2 var(--mono); color: var(--muted); }
-.pill { display: inline-block; font: 700 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 6px 9px; border-radius: 999px; color: #fff; background: var(--muted); }
-.pill[data-i="very low"] { background: #13855a; } .pill[data-i="low"] { background: #4f9a2c; }
-.pill[data-i="moderate"] { background: #b98200; } .pill[data-i="high"] { background: #d0561f; } .pill[data-i="very high"] { background: #b3261e; }
-.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
-.trio div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.trio b { font: 700 18px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
-.trio span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 
 .donut-row { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 18px; align-items: center; }
 .donut-row.tight { grid-template-columns: minmax(120px, 150px) minmax(0, 1fr); gap: 14px; }
@@ -146,12 +140,12 @@ button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px
 .lg span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lg b { font: 600 13px/1 var(--mono); font-variant-numeric: tabular-nums; }
 
-.freq { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
-.freq-row { display: flex; justify-content: space-between; align-items: baseline; }
-.freq-row b { font: 700 20px/1 var(--mono); font-variant-numeric: tabular-nums; }
-.scale { position: relative; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--bad) 0 10%, var(--warn) 10% 30%, var(--good) 30% 70%, var(--warn) 70% 90%, var(--bad) 90%); opacity: .85; }
-.scale i { position: absolute; top: -5px; width: 3px; height: 18px; background: var(--ink); border-radius: 2px; transform: translateX(-50%); transition: left .5s ease; }
-.scale-labels { display: flex; justify-content: space-between; font: 500 10px/1 var(--mono); color: var(--muted); }
+
+
+
+
+
+
 
 /* Bars (HTML) */
 .bars { display: flex; flex-direction: column; gap: 9px; }
@@ -201,12 +195,19 @@ button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px
 .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .stat b { font: 700 18px/1.15 var(--mono); font-variant-numeric: tabular-nums; }
 .stat small { font-size: 12px; color: var(--muted); }
-.win { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.win { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 @media (max-width: 520px) { .win { grid-template-columns: minmax(0, 1fr); } }
 .win .stat b { font-size: 20px; }
 .price-key { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .price-key span { display: inline-flex; align-items: center; gap: 6px; }
 .price-key i { width: 10px; height: 10px; border-radius: 2px; }
+.price-controls { width: 100%; }
+.price-controls .seg { max-width: 100%; }
+.tracker-version { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tracker-version select { max-width: 100%; width: 245px; }
+.price-key .price-line { height: 0; width: 18px; border-top: 3px solid var(--accent); border-radius: 0; }
+.price-key .tracker-line { border-color: var(--ink); border-top-style: dashed; border-top-width: 2px; }
+@media (max-width: 620px) { .price-controls .seg[aria-label="Agile view"] { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; } }
 
 /* Nuclear timeline */
 .gantt { display: flex; flex-direction: column; gap: 8px; overflow-x: auto; }
@@ -300,8 +301,8 @@ footer a { color: var(--accent); }
     </div>
     <span class="chip" id="status"><i></i><span id="statusText">Connecting</span></span>
     <div class="controls">
-      <label for="region" class="sr" hidden>Agile region</label>
-      <select id="region" aria-label="Octopus Agile region"></select>
+      <label for="region" class="sr" hidden>Octopus electricity region</label>
+      <select id="region" aria-label="Octopus electricity region"></select>
       <button class="btn" id="refresh" type="button">Refresh</button>
     </div>
   </div>
@@ -325,16 +326,6 @@ footer a { color: var(--accent); }
         </div>
       </div>
       <div class="now">
-        <div class="card" data-info="ci_now" data-fresh="now">
-          <div class="card-head"><h3>Carbon intensity</h3><span class="tag" id="tagCI">—</span></div>
-          <div><div class="big" id="ciVal">—</div><div class="unit">gCO₂ per kWh</div></div>
-          <div><span class="pill" id="ciIdx">—</span></div>
-          <div class="trio">
-            <div><b id="pLow">—</b><span>Low carbon</span></div>
-            <div><b id="pRen">—</b><span>Renewable</span></div>
-            <div><b id="pFos">—</b><span>Fossil</span></div>
-          </div>
-        </div>
         <div class="card mixcard" data-info="mix" data-fresh="pie">
           <div class="card-head"><h3>Generation mix</h3><span class="tag" id="tagMix">—</span></div>
           <div class="donut-row">
@@ -343,15 +334,10 @@ footer a { color: var(--accent); }
           </div>
           <p class="note" id="mixNote">Share of GB generation this half-hour, including rooftop solar and small wind farms (NESO estimate).</p>
         </div>
-        <div class="card" data-info="agile_now" data-fresh="agileNow">
+        <div class="card agile-now" data-info="agile_now" data-fresh="agileNow">
           <div class="card-head"><h3>Agile price now</h3><span class="tag" id="tagAgileNow">—</span></div>
           <div><div class="big" id="agNow">—</div><div class="unit" id="agNowUnit">p per kWh, inc VAT</div></div>
           <div class="kv"><div><b id="agNext">—</b><span id="agNextLbl">Next slot</span></div><div><b id="trNow">—</b><span>Tracker today</span></div></div>
-          <div class="freq">
-            <div class="freq-row"><h3>Grid frequency</h3><b id="fq">—</b></div>
-            <div class="scale" aria-hidden="true"><i id="fqMark" style="left:50%"></i></div>
-            <div class="scale-labels"><span>49.8</span><span>50.0 Hz</span><span>50.2</span></div>
-          </div>
         </div>
       </div>
       <div class="grid">
@@ -492,7 +478,7 @@ footer a { color: var(--accent); }
         <div class="card s8" data-info="history" data-fresh="hist">
           <div class="card-head"><h3 id="histTitle">Generation share, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
           <div class="chart"><canvas id="cHist" aria-label="Generation mix over time"></canvas></div>
-          <p class="note" id="histNote">Half-hourly shares from NESO's Carbon Intensity API, including embedded solar and wind.</p>
+          <p class="note" id="histNote">Half-hourly generation shares from NESO, including embedded solar and wind.</p>
         </div>
         <div class="card s4" data-info="summary" data-fresh="hist">
           <div class="card-head"><h3>Period summary</h3><span class="tag" id="tagSum">—</span></div>
@@ -553,30 +539,28 @@ footer a { color: var(--accent); }
     <section class="sec" aria-labelledby="h-price">
       <div class="sec-head">
         <h2 id="h-price">Prices</h2>
-        <p id="regionLabel">Octopus Agile, London region. Change region at the top of the page.</p>
+        <p id="regionLabel">Octopus Agile and Tracker, London region. Change region at the top of the page.</p>
       </div>
       <div class="grid">
         <div class="card s8" data-info="agile" data-fresh="agile">
-          <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3>
-            <div class="tools"><div class="seg" role="group" aria-label="Agile view">
+          <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3><span class="tag" id="tagAgile">—</span></div>
+            <div class="tools price-controls"><div class="seg" role="group" aria-label="Agile view">
               <button type="button" data-ag="ahead" aria-pressed="true">Next 24 h</button>
               <button type="button" data-ag="days" aria-pressed="false">Today &amp; tomorrow</button>
-            </div><span class="tag" id="tagAgile">—</span></div>
-          </div>
+              <button type="button" data-ag="week" aria-pressed="false">7 days</button>
+              <button type="button" data-ag="month" aria-pressed="false">30 days</button>
+            </div></div>
           <div class="stats">
             <div class="stat"><span>Now</span><b id="sNow">—</b><small id="sNowT">—</small></div>
-            <div class="stat"><span>Lowest ahead</span><b id="sMin">—</b><small id="sMinT">—</small></div>
-            <div class="stat"><span>Highest ahead</span><b id="sMax">—</b><small id="sMaxT">—</small></div>
-            <div class="stat"><span>Average ahead</span><b id="sAvg">—</b><small id="sAvgT">—</small></div>
+            <div class="stat"><span id="sMinLabel">Lowest ahead</span><b id="sMin">—</b><small id="sMinT">—</small></div>
+            <div class="stat"><span id="sMaxLabel">Highest ahead</span><b id="sMax">—</b><small id="sMaxT">—</small></div>
+            <div class="stat"><span id="sAvgLabel">Average ahead</span><b id="sAvg">—</b><small id="sAvgT">—</small></div>
           </div>
           <div class="chart"><canvas id="cAgile" aria-label="Agile prices by half hour"></canvas></div>
           <div class="price-key">
-            <span><i style="background:var(--c-hydro)"></i>Under 0p (you're paid)</span>
-            <span><i style="background:var(--good)"></i>0–15p</span>
-            <span><i style="background:var(--c-solar)"></i>15–25p</span>
-            <span><i style="background:var(--c-gas)"></i>25–35p</span>
-            <span><i style="background:var(--bad)"></i>35p and up</span>
-            <span><i style="background:transparent;border-top:2px dashed var(--ink);height:0;width:14px;border-radius:0"></i>Octopus Tracker (daily rate)</span>
+            <span><i class="price-line"></i><span id="agResolution">Agile half-hourly rate</span></span>
+            <span id="agBandKey" hidden><i style="background:color-mix(in srgb,var(--accent) 18%,transparent)"></i>Half-hourly low–high</span>
+            <span id="agTrackerKey" hidden><i class="price-line tracker-line"></i>Tracker daily rate</span>
           </div>
           <p class="vs" id="agVsTr"></p>
           <p class="note" id="agNote">Tomorrow's rates appear after Octopus publishes them, usually around 4pm.</p>
@@ -592,9 +576,26 @@ footer a { color: var(--accent); }
           </select>
           <div class="win">
             <div class="stat"><span>Cheapest</span><b id="wCheap">—</b><small id="wCheapV">—</small></div>
-            <div class="stat"><span>Greenest</span><b id="wGreen">—</b><small id="wGreenV">—</small></div>
           </div>
-          <p class="note">Searches the Agile rates and NESO's 48-hour carbon forecast for the lowest average window. Good for washing machines, dishwashers and EV charging.</p>
+          <p class="note">Finds the lowest average Agile price for this run time from the published half-hours ahead. Good for washing machines, dishwashers and EV charging.</p>
+        </div>
+        <div class="card s12" data-info="tracker" data-fresh="tracker">
+          <div class="card-head"><h3 id="trTitle">Octopus Tracker daily electricity prices</h3><span class="tag" id="tagTracker">—</span></div>
+          <div class="tools price-controls">
+            <div class="seg" role="group" aria-label="Tracker time range">
+              <button type="button" data-tr="week" aria-pressed="true">7 days</button>
+              <button type="button" data-tr="month" aria-pressed="false">30 days</button>
+            </div>
+            <label class="tracker-version" for="trackerProduct"><span class="note">Tariff version</span><select id="trackerProduct" aria-label="Tracker tariff version"></select></label>
+          </div>
+          <div class="stats">
+            <div class="stat"><span>Today</span><b id="trToday">—</b><small id="trTodayT">—</small></div>
+            <div class="stat"><span>Tomorrow</span><b id="trTomorrow">—</b><small id="trTomorrowT">Awaiting publication</small></div>
+            <div class="stat"><span id="trAvgLabel">7-day average</span><b id="trAvg">—</b><small id="trAvgT">—</small></div>
+            <div class="stat"><span>Period low–high</span><b id="trRange">—</b><small id="trRangeT">—</small></div>
+          </div>
+          <div class="chart sm"><canvas id="cTracker" role="img" aria-label="Octopus Tracker daily electricity unit rates"></canvas></div>
+          <p class="note" id="trNote" aria-live="polite">Loading published daily electricity prices.</p>
         </div>
         <div class="card s12" data-info="wholesale" data-fresh="mid">
           <div class="card-head"><h3 id="midTitle">Wholesale price, last 7 days</h3>
@@ -683,39 +684,6 @@ footer a { color: var(--accent); }
       </div>
     </section>
 
-    <!-- CARBON -->
-    <section class="sec" aria-labelledby="h-ci">
-      <div class="sec-head">
-        <h2 id="h-ci">Carbon intensity</h2>
-        <div class="seg" role="group" aria-label="Carbon intensity time range">
-          <button type="button" data-ci="24" aria-pressed="true">24 h</button>
-          <button type="button" data-ci="168" aria-pressed="false">7 days</button>
-          <button type="button" data-ci="720" aria-pressed="false">30 days</button>
-          <button type="button" data-ci="8760" aria-pressed="false">1 year</button>
-        </div>
-      </div>
-      <div class="grid">
-        <div class="card s8" data-info="ci_chart" data-fresh="ci">
-          <div class="card-head"><h3 id="ciTitle">Last 24 hours and next 48 hours</h3><span class="tag" id="tagCIh">—</span></div>
-          <div class="chart"><canvas id="cCI" aria-label="Carbon intensity history and forecast"></canvas></div>
-          <p class="note">Grams of CO₂ for each kWh used, from NESO's Carbon Intensity API. The line changes colour by band, from very low (green) to very high (red), and the forecast is dashed.</p>
-        </div>
-        <div class="card s4" data-info="ci_figs" data-fresh="ci">
-          <div class="card-head"><h3>Intensity figures</h3><span class="tag" id="tagCIs">—</span></div>
-          <div class="stats two">
-            <div class="stat"><span>Period average</span><b id="cAvg">—</b><small>gCO₂/kWh</small></div>
-            <div class="stat"><span>Cleanest</span><b id="cMin">—</b><small id="cMinT">—</small></div>
-            <div class="stat"><span>Dirtiest</span><b id="cMax">—</b><small id="cMaxT">—</small></div>
-            <div class="stat"><span>Cleanest ahead</span><b id="cFc">—</b><small id="cFcT">—</small></div>
-            <div class="stat"><span>Same period last year</span><b id="cLy">—</b><small>gCO₂/kWh average</small></div>
-            <div class="stat"><span>Change on last year</span><b id="cYoY">—</b><small id="cYoYT">—</small></div>
-          </div>
-          <div class="bars" id="ciBands"></div>
-          <p class="note">Share of the period spent in each band.</p>
-        </div>
-      </div>
-    </section>
-
     <!-- RECORDS -->
     <section class="sec" aria-labelledby="h-rec">
       <div class="sec-head">
@@ -775,7 +743,7 @@ footer a { color: var(--accent); }
   const FALLBACK_AGILE = "AGILE-24-10-01";
   const REGIONS = { A: "East England", B: "East Midlands", C: "London", D: "Merseyside & N Wales", E: "West Midlands", F: "North East England", G: "North West England", H: "Southern England", J: "South East England", K: "South Wales", L: "South West England", M: "Yorkshire", N: "South Scotland", P: "North Scotland" };
   const ORDER = ["nuclear", "biomass", "hydro", "wind", "solar", "imports", "storage", "other", "gas"];
-  const TRACKERS = ["SILVER-25-09-02", "SILVER-25-04-15", "SILVER-24-12-31", "SILVER-24-10-01"];
+  const TRACKERS = ["SILVER-26-04-01", "SILVER-25-09-02", "SILVER-25-04-15", "SILVER-24-12-31", "SILVER-24-10-01"];
   // GB operational battery storage: [label, GW, GWh or null]. Sources in the info text.
   const BAT_CAP = [["2020", 1.13, null], ["2021", 1.39, 1.5], ["2022", 2.1, 2.3], ["2023", 3.5, 4.5], ["2024", 4.7, null], ["2025", 6.8, 11.0], ["Q3 2026", 8.5, 14.4]];
   const LABEL = { windEmb: "Embedded wind (est.)", nuclear: "Nuclear", biomass: "Biomass", hydro: "Hydro", wind: "Wind", solar: "Solar", imports: "Net imports", storage: "Pumped storage", other: "Other", gas: "Gas", coal: "Coal" };
@@ -787,7 +755,7 @@ footer a { color: var(--accent); }
   };
 
   const $ = id => document.getElementById(id);
-  const S = { batRange: 24, recPeriod: "month", agView: "ahead", pieRange: 0, range: 24, yoyRange: 8760, unit: "pct", demRange: 168, midRange: 168, ciRange: 24, region: "C", live: {}, data: {}, charts: {} };
+  const S = { batRange: 24, recPeriod: "month", agView: "ahead", trView: "week", trProduct: "", pieRange: 0, range: 24, yoyRange: 8760, unit: "pct", demRange: 168, midRange: 168, region: "C", live: {}, data: {}, charts: {} };
   try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
 
   /* ---------- helpers ---------- */
@@ -880,9 +848,8 @@ footer a { color: var(--accent); }
 
   /* ---------- tap-for-info text ---------- */
   const INFO = {
-    ci_now: "<p><b>Carbon intensity</b> is how many grams of CO₂ are emitted for each kWh of electricity used in Great Britain right now. Lower is cleaner.</p><p>Bands: very low under 40 g, low 40–119, moderate 120–199, high 200–289, very high 290 and over. Gas power stations push it up; wind, solar and nuclear bring it down.</p><p><b>Low carbon</b> is renewables plus nuclear. Shares are of what GB used, with imports counted net.</p>",
     mix: "<p>Where this half-hour's electricity is coming from, as a share of what Great Britain is using. It includes rooftop solar and small wind farms, which NESO estimates because they aren't metered centrally.</p><p>The centre figure is <b>made in GB</b>: GB generation divided by GB use. Above 100% means GB is making more than it needs and exporting the rest.</p>",
-    agile_now: "<p><b>Agile Octopus</b> sets a new price every half-hour from the day-ahead wholesale market, with a higher charge from 4pm to 7pm. It can go below zero when there's lots of wind.</p><p><b>Tracker</b> is Octopus's daily tariff: one price per day, also linked to wholesale costs.</p><p><b>Grid frequency</b> should stay close to 50 Hz. It falls when demand outstrips supply and rises when there's too much power. NESO keeps it between 49.8 and 50.2 Hz in normal running.</p>",
+    agile_now: "<p><b>Agile Octopus</b> sets a new price every half-hour from the day-ahead wholesale market, with a higher charge from 4pm to 7pm. It can go below zero when there's lots of wind.</p><p><b>Tracker</b> is Octopus's daily tariff: one price per day, also linked to wholesale costs.</p>",
     homegrown: "<p>How much of the electricity GB used was generated in GB. Imports are counted <b>net</b>: power flowing out to Europe and Ireland is subtracted from power flowing in.</p><p>When GB exports more than it imports, home-grown goes above 100% and there's no imports slice.</p>",
     clean: "<p>Renewables are wind, solar, hydro and biomass. Nuclear is low-carbon but not renewable. Fossil is gas; GB's last coal plant closed in September 2024.</p>",
     renewables: "<p>The split within renewable output only. The centre shows renewables as a share of everything GB used.</p><p>Biomass, mostly wood pellets burned at Drax, counts as renewable in official statistics, though how green it is is debated.</p>",
@@ -893,8 +860,9 @@ footer a { color: var(--accent); }
     yoy: "<p><b>Last 12 months</b> compares the last 52 whole weeks (Monday to Sunday) with the 52 weeks before them. <b>Last 30 days</b> compares the last 30 whole days with the same 30 days 52 weeks earlier, so weekdays line up. The part-week or part-day so far is left out, so both sides are complete.</p><p><b>Made in GB</b> is home-grown generation as a share of what GB used, with imports counted net of exports; above 100% means GB was a net exporter.</p><p><b>pts</b> means percentage points: going from 30% to 33% is +3 pts. <b>Growth</b> compares average output in GW, so +10% means 10% more power than a year earlier.</p><p>Green means a move towards cleaner power; red means a move towards gas.</p>",
     demand: "<p><b>National demand</b> is the electricity drawn from the transmission network by homes and businesses. Rooftop solar and small wind farms reduce it, which is why it dips around midday on sunny days.</p><p>Long ranges show the average line with a shaded band from each period's lowest to highest half-hour. The dotted line is the same time a year earlier.</p>",
     demand_figs: "<p><b>Peak vs low</b> is the average gap between each day's busiest and quietest half-hour. The early-evening peak, around 5pm to 6pm, is the hardest time of day for the grid.</p>",
-    agile: "<p>Each bar is one half-hour's Agile unit rate for your region, including VAT. Outlined bars are the cheapest window for the run time you choose. The dashed line is that day's Octopus Tracker rate.</p><p>Agile is capped at 100p per kWh and can go below zero, when you're paid to use power.</p>",
-    besttime: "<p><b>Cheapest</b> finds the run of half-hours with the lowest average Agile price. <b>Greenest</b> finds the lowest average carbon intensity in NESO's 48-hour forecast.</p><p>They often overlap overnight or on windy afternoons.</p>",
+    agile: "<p>The short views show published half-hourly Agile electricity rates. The 7-day view shows hourly averages; the 30-day view shows daily averages. Their shaded band retains the lowest and highest half-hourly rates. Hover or touch for exact values.</p><p>History covers complete UK calendar days, excluding today. Smooth curves guide the eye between averages; they are not additional published prices. The dashed line uses the Tracker version selected below. All unit rates include VAT and exclude standing charges.</p>",
+    tracker: "<p>Octopus Tracker sets one electricity unit rate per UK day. The steps show the actual daily rates for the selected region and tariff version, with gaps where prices are unavailable.</p><p>Different Tracker versions have different prices. Select the version on your agreement. Today and tomorrow are shown separately above the history; tomorrow remains blank until Octopus publishes it. Unit rates include VAT and exclude standing charges.</p>",
+    besttime: "<p>Finds the continuous run of published half-hours with the lowest average Agile price for your chosen duration. The search stays on the upcoming prices even while you browse the history.</p>",
     wholesale: "<p>The Market Index Price is the average price of electricity traded in the short-term market for each half-hour, in £ per megawatt-hour. £100/MWh is 10p per kWh.</p><p>Gas power stations usually set the price, so it follows gas prices and drops when wind is plentiful. Bills add network costs, levies and VAT on top.</p>",
     total_cap: "<p>The maximum output of every power station in the UK added together. Actual output is much lower, because wind and solar depend on the weather and plants need maintenance.</p>",
     cap2025: "<p>Capacity by technology at the end of 2025. A gigawatt (GW) is a thousand megawatts.</p>",
@@ -903,8 +871,6 @@ footer a { color: var(--accent); }
     solarcap: "<p>Installed solar capacity, mostly rooftops and small solar farms on local networks. Averaged over a year, GB solar produces about a tenth of its capacity.</p>",
     nuclear: "<p>The UK's five operating nuclear stations and when EDF expects each to stop generating. Hinkley Point C in Somerset is under construction.</p>",
     batcap: "<p>Grid-scale battery capacity in Great Britain. GW is how fast batteries can charge or discharge; GWh is how much energy they hold. Most GB batteries hold one to two hours at full power.</p><p>2020 is from RenewableUK; 2021 is worked out from Modo Energy's 2022 review; later years are Modo Energy.</p>",
-    ci_chart: "<p>Grams of CO₂ per kWh. The line is coloured by band, from green (very low) to red (very high). The dashed line is NESO's forecast for the next 48 hours.</p><p>For 30 days and 1 year, the line is the daily or weekly average and the shaded band runs from the cleanest to the dirtiest half-hour.</p>",
-    ci_figs: "<p>The bars show how much of the period fell in each carbon band, counting every half-hour.</p>",
     battery: "<p>Batteries charge when power is cheap or plentiful and supply it back at busy times. Green bars are batteries supplying the grid; pink bars below the line are charging.</p><p>This uses <b>physical notifications</b>: the output each battery tells the grid operator it plans to run at, which is very close to what actually happens. It covers batteries registered in the Balancing Mechanism, about two-thirds of GB's fleet.</p>",
     battery_figs: "<p><b>Supplied</b> and <b>Charged</b> are energy over the selected period, in megawatt-hours (MWh). Batteries lose roughly 10 to 15% of the energy in each charge and discharge.</p>",
     forecast: "<p><b>Wind</b> is Elexon's forecast for wind farms on the transmission network. <b>Embedded wind</b> and <b>solar</b> are NESO's forecasts for smaller sites on local networks. The chart stops where the transmission wind forecast ends, usually 2 to 3 days ahead.</p><p>Solid areas are measured; faded areas are forecast.</p>",
@@ -1063,7 +1029,6 @@ footer a { color: var(--accent); }
       default: return "other";
     }
   }
-  function ciIndex(v) { return v < 40 ? "very low" : v < 120 ? "low" : v < 200 ? "moderate" : v < 290 ? "high" : "very high"; }
   const dedupe = (list, key) => { const seen = new Set(); return list.filter(x => { const k = key(x); if (seen.has(k)) return false; seen.add(k); return true; }); };
 
   /* ---------- data loaders: each returns data or throws ---------- */
@@ -1071,13 +1036,6 @@ footer a { color: var(--accent); }
     const parts = await Promise.all(chunks(from, to, 30).map(([a, b]) => getJSON(`${API.ci}/generation/${ciISO(a)}/${ciISO(b)}`, 60000)));
     const pts = dedupe(parts.flatMap(rows).filter(d => d.generationmix), d => d.from)
       .map(d => ({ t: new Date(d.from), v: parseMix(d.generationmix) })).sort((a, b) => a.t - b.t);
-    if (!pts.length) throw new Error("empty");
-    return pts;
-  }
-  async function ciIntRange(from, to) {
-    const parts = await Promise.all(chunks(from, to, 30).map(([a, b]) => getJSON(`${API.ci}/intensity/${ciISO(a)}/${ciISO(b)}`, 60000)));
-    const pts = dedupe(parts.flatMap(rows), d => d.from)
-      .map(d => ({ t: new Date(d.from), v: d.intensity.actual ?? d.intensity.forecast })).filter(p => p.v != null).sort((a, b) => a.t - b.t);
     if (!pts.length) throw new Error("empty");
     return pts;
   }
@@ -1160,18 +1118,12 @@ footer a { color: var(--accent); }
 
   async function loadNow() {
     const now = new Date(), out = {};
-    const [ci, gen, inst, fq, sol, emb] = await Promise.allSettled([
-      getJSON(API.ci + "/intensity"),
+    const [gen, inst, sol, emb] = await Promise.allSettled([
       getJSON(API.ci + "/generation"),
       getJSON(`${API.elx}/datasets/FUELINST?publishDateTimeFrom=${new Date(now - 40 * 6e4).toISOString()}&publishDateTimeTo=${now.toISOString()}&format=json`),
-      getJSON(`${API.elx}/system/frequency?from=${new Date(now - 15 * 6e4).toISOString()}&to=${now.toISOString()}&format=json`),
       getJSON(`${API.elx}/generation/actual/per-type/wind-and-solar?from=${new Date(now - 8 * 36e5).toISOString()}&to=${now.toISOString()}&format=json`),
       embeddedMap()
     ]);
-    if (ci.status === "fulfilled" && rows(ci.value)[0]) {
-      const d = rows(ci.value)[0];
-      out.ci = { value: d.intensity.actual ?? d.intensity.forecast, index: d.intensity.index, from: new Date(d.from) };
-    }
     if (gen.status === "fulfilled") {
       const d = Array.isArray(gen.value.data) ? gen.value.data[0] : gen.value.data;
       if (d && d.generationmix) out.mix = { pct: parseMix(d.generationmix), from: new Date(d.from) };
@@ -1196,8 +1148,6 @@ footer a { color: var(--accent); }
         if (e) { fuels.windEmb = e.wind / 1000; out.inst.embTime = slot(now); }
       }
     }
-    const fqRows = fq.status === "fulfilled" ? rows(fq.value) : [];
-    if (fqRows.length) out.freq = fqRows.reduce((a, r) => (!a || r.measurementTime > a.measurementTime) ? r : a, null).frequency;
     return out;
   }
 
@@ -1278,28 +1228,6 @@ footer a { color: var(--accent); }
     return { past: pts, fut, ly: ly.status === "fulfilled" ? ly.value : [] };
   }
 
-  async function loadCI(hours) {
-    if (hours >= 720) {
-      const sm = await summary(hours).catch(() => null);
-      if (sm) {
-        const now = new Date();
-        const fwd = await getJSON(`${API.ci}/intensity/${ciISO(now)}/fw48h`).catch(() => null);
-        const fut = fwd ? rows(fwd).map(d => ({ t: new Date(d.from), v: d.intensity.forecast })) : [];
-        const bands = [0, 1, 2, 3, 4].map(i => sm.cur.reduce((a, x) => a + (x.cib ? x.cib[i] : 0), 0));
-        return { repo: true, ms: sm.ms, built: sm.built, past: band(sm.cur, "ci"), ly: band(sm.ly, "ci"), fut, bands };
-      }
-    }
-    const now = new Date(), from = new Date(now - hours * 36e5);
-    const [past, fwd, ly] = await Promise.allSettled([
-      ciIntRange(from, now),
-      getJSON(`${API.ci}/intensity/${ciISO(now)}/fw48h`),
-      ciIntRange(ago(from), new Date(+ago(now) + 2 * 864e5))
-    ]);
-    if (past.status !== "fulfilled") throw new Error("ci");
-    const fut = fwd.status === "fulfilled" ? rows(fwd.value).map(d => ({ t: new Date(d.from), v: d.intensity.forecast })) : [];
-    return { past: past.value, fut, ly: ly.status === "fulfilled" ? ly.value : [] };
-  }
-
   async function findAgileProduct() {
     if (S.data.agileProduct) return S.data.agileProduct;
     try {
@@ -1310,29 +1238,111 @@ footer a { color: var(--accent); }
     } catch (e) { S.data.agileProduct = FALLBACK_AGILE; }
     return S.data.agileProduct;
   }
-  async function loadAgile() {
-    const now = new Date();
-    const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
-    const end = new Date(+dayStart + 2 * 864e5);
-    const prod = await findAgileProduct();
-    const j = await getJSON(`${API.oct}/products/${prod}/electricity-tariffs/E-1R-${prod}-${S.region}/standard-unit-rates/?period_from=${dayStart.toISOString()}&period_to=${end.toISOString()}&page_size=300`);
-    const pts = (j.results || []).filter(r => !r.payment_method || r.payment_method === "DIRECT_DEBIT")
-      .map(r => ({ t: new Date(r.valid_from), end: new Date(r.valid_to), v: r.value_inc_vat })).sort((a, b) => a.t - b.t);
-    if (!pts.length) throw new Error("empty");
-    const tracker = await loadTracker(dayStart, end).catch(() => null);
-    return { pts, product: prod, tracker, fetched: new Date() };
+  // Price days always follow Europe/London, regardless of the visitor's time zone.
+  const priceDayOffset = (key, days) => new Date(Date.parse(key + "T12:00:00Z") + days * DAY).toISOString().slice(0, 10);
+  const priceDayStart = key => {
+    const midnight = Date.parse(key + "T00:00:00Z");
+    return new Date(midnight - Number(ukHour.format(new Date(midnight))) * 36e5);
+  };
+  const priceDays = view => view === "month" ? 30 : view === "week" ? 7 : 0;
+  const priceClock = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London", timeZoneName: "short" });
+  function priceBounds(days, now = new Date()) {
+    const key = ukDay.format(now);
+    return { from: priceDayStart(priceDayOffset(key, -days)), to: priceDayStart(key) };
   }
-  // Octopus Tracker: one rate per day. Closed to new customers but still published; try the newest version first.
-  async function loadTracker(from, to) {
-    for (const code of TRACKERS) {
-      try {
-        const j = await getJSON(`${API.oct}/products/${code}/electricity-tariffs/E-1R-${code}-${S.region}/standard-unit-rates/?period_from=${from.toISOString()}&period_to=${to.toISOString()}`);
-        const r = (j.results || []).filter(x => !x.payment_method || x.payment_method === "DIRECT_DEBIT")
-          .map(x => ({ from: new Date(x.valid_from), to: x.valid_to ? new Date(x.valid_to) : null, v: x.value_inc_vat })).sort((a, b) => a.from - b.from);
-        if (r.length) return { code, rates: r };
-      } catch (e) {}
+  const priceMean = pts => {
+    const duration = pts.reduce((n, p) => n + (+p.end - +p.t), 0);
+    return duration ? pts.reduce((n, p) => n + p.v * (+p.end - +p.t), 0) / duration : null;
+  };
+  async function octopusRates(code, region, from, to) {
+    const base = `${API.oct}/products/${code}/electricity-tariffs/E-1R-${code}-${region}/standard-unit-rates/`;
+    let url = `${base}?period_from=${from.toISOString()}&period_to=${to.toISOString()}&page_size=1500`;
+    const records = new Map();
+    for (let page = 0; url; page++) {
+      if (page >= 10 || !url.startsWith(base)) throw new Error("Invalid price pagination");
+      const j = await getJSON(url);
+      if (!Array.isArray(j.results)) throw new Error("Invalid price response");
+      j.results.forEach(r => {
+        if (r.payment_method && r.payment_method !== "DIRECT_DEBIT") return;
+        const t = new Date(r.valid_from);
+        if (!Number.isFinite(+t)) return;
+        const end = r.valid_to ? new Date(r.valid_to) : code.startsWith("SILVER-") ? priceDayStart(priceDayOffset(ukDay.format(t), 1)) : new Date(+t + HH);
+        if (!Number.isFinite(+t) || !Number.isFinite(+end) || typeof r.value_inc_vat !== "number" || !Number.isFinite(r.value_inc_vat) || end <= t || end <= from || t >= to) return;
+        const p = { t: new Date(Math.max(+t, +from)), end: new Date(Math.min(+end, +to)), v: r.value_inc_vat };
+        records.set(+p.t, p);
+      });
+      url = j.next;
     }
-    return null;
+    return [...records.values()].sort((a, b) => a.t - b.t);
+  }
+  const PRICE_HISTORY = new Map();
+  async function priceHistory(code, region, from, to) {
+    const key = [code, region, +from, +to].join(":");
+    const hit = PRICE_HISTORY.get(key);
+    if (hit && Date.now() - hit.at < 30 * 60000) return hit.value;
+    const value = await octopusRates(code, region, from, to);
+    if (!value.length) throw new Error("No historic rates");
+    PRICE_HISTORY.set(key, { at: Date.now(), value });
+    if (PRICE_HISTORY.size > 30) PRICE_HISTORY.delete(PRICE_HISTORY.keys().next().value);
+    return value;
+  }
+  async function loadAgile(region, view) {
+    const today = ukDay.format(new Date());
+    const from = priceDayStart(today), end = priceDayStart(priceDayOffset(today, 2));
+    const prod = await findAgileProduct();
+    const days = priceDays(view), bounds = priceBounds(days);
+    const [pts, past] = await Promise.all([
+      octopusRates(prod, region, from, end),
+      days ? priceHistory(prod, region, bounds.from, bounds.to).catch(() => null) : Promise.resolve([])
+    ]);
+    if (!pts.length) throw new Error("empty");
+    return { pts, history: past, historyError: days > 0 && !past, bounds, product: prod, region, view, fetched: new Date() };
+  }
+  const trackerName = code => {
+    const match = /^SILVER-(\d{2})-(\d{2})-(\d{2})$/.exec(code);
+    const date = match && new Date(`20${match[1]}-${match[2]}-${match[3]}T12:00:00Z`);
+    return date && Number.isFinite(+date) ? "Tracker " + new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(date) + ` (${code.slice(7)})` : code;
+  };
+  async function findTrackerProducts() {
+    if (S.data.trackerProducts) return S.data.trackerProducts;
+    const j = await getJSON(`${API.oct}/products/?brand=OCTOPUS_ENERGY&is_tracker=true&page_size=100`).catch(() => null);
+    const found = (j?.results || []).filter(p => /^SILVER-\d{2}-\d{2}-\d{2}$/.test(p.code) && !p.is_business && p.direction !== "EXPORT").map(p => p.code);
+    // Some closed Tracker versions are absent from the catalogue but still publish daily prices.
+    const codes = [...new Set(found.concat(TRACKERS, S.trProduct || []))].sort().reverse();
+    S.data.trackerProducts = codes;
+    const select = $("trackerProduct");
+    select.replaceChildren();
+    codes.forEach(code => { const option = document.createElement("option"); option.value = code; option.textContent = trackerName(code); select.appendChild(option); });
+    if (!S.trProduct) S.trProduct = codes[0];
+    select.value = S.trProduct;
+    return codes;
+  }
+  async function loadTracker(region, code) {
+    const today = ukDay.format(new Date());
+    const from = priceDayStart(priceDayOffset(today, -30)), to = priceDayStart(priceDayOffset(today, 2));
+    const [rates, detail] = await Promise.all([
+      octopusRates(code, region, from, to),
+      getJSON(`${API.oct}/products/${code}/`).catch(() => null)
+    ]);
+    if (!rates.length) throw new Error("No Tracker rates for this version");
+    return { code, name: detail?.full_name || trackerName(code), rates, region, fetched: new Date() };
+  }
+  function trackerAt(tr, t) {
+    const rate = tr?.rates.find(p => p.t <= t && p.end > t);
+    return rate ? rate.v : null;
+  }
+  function priceBuckets(rates, from, to, daily) {
+    const points = [];
+    for (let start = new Date(from); start < to;) {
+      const end = daily ? priceDayStart(priceDayOffset(ukDay.format(start), 1)) : new Date(+start + 36e5);
+      const parts = rates.filter(p => p.t < end && p.end > start).map(p => ({ t: new Date(Math.max(+start, +p.t)), end: new Date(Math.min(+end, +p.end)), v: p.v }));
+      const covered = parts.reduce((n, p) => n + (+p.end - +p.t), 0);
+      // Leave a gap if a whole hour/day is not available; never interpolate missing prices.
+      const complete = covered === +end - +start;
+      points.push({ t: start, end, v: complete ? priceMean(parts) : null, lo: complete ? Math.min(...parts.map(p => p.v)) : null, hi: complete ? Math.max(...parts.map(p => p.v)) : null });
+      start = end;
+    }
+    return points;
   }
   async function midRange(from, to) {
     const parts = (to - from) > 6 * 864e5
@@ -1455,7 +1465,6 @@ footer a { color: var(--accent); }
     g.addColorStop(0, hex + top); g.addColorStop(1, hex + bottom);
     return g;
   };
-  const ciColour = v => v < 40 ? "#13855a" : v < 120 ? "#4f9a2c" : v < 200 ? "#c48a00" : v < 290 ? "#d0561f" : "#b3261e";
   const timeLabels = (pts, hours) => pts.map(p => hours >= 720 ? dateFmt.format(p.t) : hours > 24 ? (hours > 200 ? dateFmt.format(p.t) + " " + hm(p.t) : dhm(p.t)) : hm(p.t));
 
   const PLUGINS = [
@@ -1642,19 +1651,8 @@ footer a { color: var(--accent); }
 
   /* ---------- rendering ---------- */
   function renderNow(n) {
-    if (n.ci) {
-      $("ciVal").textContent = Math.round(n.ci.value);
-      const idx = (n.ci.index || ciIndex(n.ci.value)).toLowerCase();
-      $("ciIdx").textContent = idx; $("ciIdx").dataset.i = idx;
-    }
-    setTag("tagCI", !!n.ci);
-    setFresh("now", n.ci ? n.ci.from : null, "data", 45);
     if (n.mix) {
-      const nm = nowModel(n), p = nm ? netPct(n.mix.pct, nm.self) : n.mix.pct, ren = RENEW.reduce((a, f) => a + p[f], 0);
       $("nowTime").textContent = `Half-hour starting ${hm(n.mix.from)} · ${dayFmt.format(n.mix.from)}`;
-      $("pRen").textContent = Math.round(ren) + "%";
-      $("pLow").textContent = Math.round(ren + p.nuclear) + "%";
-      $("pFos").textContent = Math.round(p.gas) + "%";
     }
 
     const fuels = n.inst ? n.inst.fuels : null;
@@ -1686,10 +1684,6 @@ footer a { color: var(--accent); }
     }
     setTag("tagInst", !!fuels); setTag("tagIc", !!fuels);
 
-    if (n.freq != null) {
-      $("fq").textContent = n.freq.toFixed(3) + " Hz";
-      $("fqMark").style.left = Math.max(0, Math.min(100, (n.freq - 49.8) / 0.4 * 100)) + "%";
-    }
   }
 
   // The four pie charts. `p` is a share-of-generation object, `period` describes it.
@@ -1757,7 +1751,7 @@ footer a { color: var(--accent); }
     $("histNote").textContent = rm
       ? `${S.range >= YEAR ? "Weekly" : "Daily"} averages from NESO's historic generation mix, including small wind farms and solar, with imports counted net. ${pct ? "Tap or hover for the full breakdown." : ""}`
       : pct
-        ? "Half-hourly shares from NESO's Carbon Intensity API, including embedded solar and wind, with imports counted net. Tap or hover for the full breakdown."
+        ? "Half-hourly generation shares from NESO, including embedded solar and wind, with imports counted net. Tap or hover for the full breakdown."
         : "Half-hourly output from Elexon's meters, plus NESO's estimates for solar and small wind farms. Imports are net.";
     setTag("tagHist", !!pts, rm ? "Summary" : "Live"); setTag("tagSum", !!pts, rm ? "Summary" : "Live");
     if (!pts) { emptyChart("cHist"); setFresh("hist", null); return; }
@@ -1900,49 +1894,6 @@ footer a { color: var(--accent); }
     $("dPkYoYT").textContent = c ? `${gw(hiV(c.peak))} a year earlier` : "Not available";
   }
 
-  function renderCI() {
-    const d = S.data.ci, h = S.ciRange, ms = d && d.repo ? d.ms : bucketFor(h);
-    const rt = rangeTxt(h)[0].toUpperCase() + rangeTxt(h).slice(1);
-    $("ciTitle").textContent = ms >= WEEK ? rt : `${rt} and next 48 hours`;
-    setTag("tagCIh", !!d, d && d.repo ? "Summary" : "Live"); setTag("tagCIs", !!d);
-    if (!d) { emptyChart("cCI"); setFresh("ci", null); return; }
-    if (d.repo) setFresh("ci", d.built, "summary", 120); else setFresh("ci", d.past[d.past.length - 1].t, "data", 60);
-    const ink = css("--ink"), muted = css("--muted");
-    const o = baseOpts();
-    o.scales.y.beginAtZero = true;
-    o.scales.y.ticks.callback = v => v + " g";
-    o.scales.x.ticks.maxTicksLimit = 7;
-    let all;
-    o.plugins.tooltip.callbacks = { title: c => tipTime(all[c[0].dataIndex].t, ms), label: c => ` ${c.dataset.label}: ${Math.round(c.parsed.y)} g · ${ciIndex(c.parsed.y)}` };
-    const seg = { borderColor: c => ciColour((c.p0.parsed.y + c.p1.parsed.y) / 2) };
-    all = lineWithForecast("cCI", d.past, d.fut, o, {
-      rangeKey: "ciRange", ms, ly: d.ly, fmt: v => Math.round(v) + " g",
-      past: { borderColor: ink, segment: seg, backgroundColor: grad(muted, "30", "00"), borderWidth: 2.4 },
-      fut: { borderColor: ink, segment: { ...seg, borderDash: [5, 4] }, backgroundColor: grad(muted, "12", "00"), borderWidth: 2.4 }
-    });
-    const past = d.past;
-    const mx = hiOf(past), mn = loOf(past);
-    const av = mean(past);
-    $("cAvg").textContent = Math.round(av);
-    $("cMin").textContent = Math.round(loV(mn)) + " g"; $("cMinT").textContent = whenB(mn.t, ms, h);
-    $("cMax").textContent = Math.round(hiV(mx)) + " g"; $("cMaxT").textContent = whenB(mx.t, ms, h);
-    if (d.fut.length) { const b = d.fut.reduce((a, p) => p.v < a.v ? p : a); $("cFc").textContent = b.v + " g"; $("cFcT").textContent = dhm(b.t); }
-    const c = d.ly.length ? lyCompare(past, d.ly) : null;
-    $("cLy").textContent = c ? Math.round(c.avg) : "—";
-    $("cYoY").textContent = c ? signed(pctCh(av, c.avg)) + "%" : "—";
-    $("cYoY").className = c ? (av < c.avg ? "good" : "bad") : "";
-    $("cYoYT").textContent = c ? (av < c.avg ? "Cleaner than a year earlier" : "Dirtier than a year earlier") : "Not available";
-    const bands = [["very low", 0, 40], ["low", 40, 120], ["moderate", 120, 200], ["high", 200, 290], ["very high", 290, 1e9]];
-    const counts = d.bands || bands.map(([, lo, hi]) => past.filter(p => p.v >= lo && p.v < hi).length);
-    const tot = counts.reduce((a, b) => a + b, 0) || 1;
-    $("ciBands").innerHTML = bands.map(([name, lo, hi], i) => {
-      const share = counts[i] / tot * 100;
-      return `<div class="bar"><span>${name[0].toUpperCase() + name.slice(1)}</span><div class="track"><div class="fill" style="width:${share}%;background:${ciColour(lo)}"></div></div><b>${Math.round(share)}%</b></div>`;
-    }).join("");
-  }
-
-  const dmy = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  const dKey = k => dmy.format(new Date(Date.parse(k + "T12:00:00Z")));
   function renderYoY() {
     const y = S.data.yoy, yr = S.yoyRange >= YEAR;
     $("yoyTitle").textContent = yr ? "Generation, the last 12 months vs the 12 months before" : "Generation, the last 30 days vs the same 30 days a year earlier";
@@ -1990,87 +1941,140 @@ footer a { color: var(--accent); }
       : "Live fallback while the summaries are unavailable. Shares are of electricity used, with imports counted net of exports.");
   }
 
-  function priceColour(v) {
-    if (v < 0) return col("hydro");
-    if (v < 15) return css("--good");
-    if (v < 25) return col("solar");
-    if (v < 35) return col("gas");
-    return css("--bad");
-  }
-
   function renderAgile() {
-    const a = S.data.agile;
+    const a = S.data.agile?.region === S.region ? S.data.agile : null;
+    const tr = S.data.tracker?.region === S.region && S.data.tracker.code === S.trProduct ? S.data.tracker : null;
+    const now = new Date(), days = priceDays(S.agView), history = days > 0;
+    $("agTitle").textContent = history ? `Agile prices, last ${days} complete days` : S.agView === "ahead" ? "Agile rates, next 24 hours" : "Agile rates, today and tomorrow";
+    $("sMinLabel").textContent = history ? "Period lowest" : "Lowest ahead";
+    $("sMaxLabel").textContent = history ? "Period highest" : "Highest ahead";
+    $("sAvgLabel").textContent = history ? `${days}-day average` : "Average ahead";
+    $("agResolution").textContent = days === 30 ? "Agile daily average" : days === 7 ? "Agile hourly average" : "Agile half-hourly rate";
+    $("agBandKey").hidden = !history;
+    $("agTrackerKey").hidden = true;
     setTag("tagAgileNow", !!a, REGIONS[S.region]);
-    setTag("tagAgile", !!a, a ? a.product : "");
-    if (!a) { emptyChart("cAgile"); return; }
-    const now = new Date();
-    const ahead24 = S.agView === "ahead";
-    const pts = ahead24 ? a.pts.filter(p => p.end > now && p.t < new Date(+now + 864e5)) : a.pts;
-    const curIdx = pts.findIndex(p => p.t <= now && p.end > now);
-    $("agTitle").textContent = ahead24 ? "Agile rates, next 24 hours" : "Agile rates, today and tomorrow";
-    $("agNote").textContent = ahead24 && pts.length < 48
-      ? `Octopus has published ${pts.length} of the next 48 half-hours so far. Tomorrow's rates appear around 4pm.`
-      : "Tomorrow's rates appear after Octopus publishes them, usually around 4pm.";
-    const cur = pts[curIdx], ahead = pts.filter(p => p.end > now);
+    setTag("tagAgile", !!a, a?.product);
+    ["sMin", "sMax", "sAvg", "sMinT", "sMaxT", "sAvgT"].forEach(id => $(id).textContent = "—");
+    $("agVsTr").textContent = "";
+    if (!a) {
+      ["agNow", "agNext", "sNow", "sNowT"].forEach(id => $(id).textContent = "—");
+      $("agNextLbl").textContent = "Next slot";
+      $("agNote").textContent = S.data.agilePending ? "Loading published Agile prices…" : "Agile prices are unavailable. Use Refresh to try again.";
+      setFresh("agile", null); setFresh("agileNow", null); emptyChart("cAgile"); renderWindows(); return;
+    }
+    const cur = a.pts.find(p => p.t <= now && p.end > now);
+    const next = cur && a.pts.find(p => +p.t === +cur.end);
     $("agNow").textContent = cur ? p1(cur.v) : "—";
-    const next = curIdx >= 0 ? pts[curIdx + 1] : null;
     $("agNext").textContent = next ? pence(next.v) : "—";
     $("agNextLbl").textContent = next ? `From ${hm(next.t)}` : "Next slot";
     $("sNow").textContent = cur ? pence(cur.v) : "—";
     $("sNowT").textContent = cur ? `${hm(cur.t)}–${hm(cur.end)}` : "—";
-    let av = null;
-    if (ahead.length) {
-      const mn = ahead.reduce((x, p) => p.v < x.v ? p : x), mxp = ahead.reduce((x, p) => p.v > x.v ? p : x);
-      av = ahead.reduce((x, p) => x + p.v, 0) / ahead.length;
-      $("sMin").textContent = pence(mn.v); $("sMinT").textContent = dhm(mn.t);
-      $("sMax").textContent = pence(mxp.v); $("sMaxT").textContent = dhm(mxp.t);
-      $("sAvg").textContent = pence(av); $("sAvgT").textContent = `${ahead.length} slots to ${hm(ahead[ahead.length - 1].end)}`;
+    setFresh("agileNow", a.fetched, "data", 30);
+    if (history && (a.view !== S.agView || a.historyError)) {
+      $("agNote").textContent = S.data.agilePending ? "Loading historical Agile prices…" : "Historical Agile prices couldn't be loaded. The current rate above is still available. Use Refresh to retry.";
+      setTag("tagAgile", false); setFresh("agile", null); emptyChart("cAgile"); renderWindows(); return;
     }
-    setFresh("agile", a.fetched, "data", 30); setFresh("agileNow", a.fetched, "data", 30);
-    // Tracker: one rate per day, drawn as a dashed step line over the Agile bars
-    const tr = a.tracker;
-    const trAt = t => { if (!tr) return null; const r = tr.rates.find(x => x.from <= t && (!x.to || t < x.to)); return r ? r.v : null; };
-    const trData = pts.map(p => trAt(p.t));
-    const trToday = trAt(now);
-    $("trNow").textContent = trToday != null ? pence(trToday) : "—";
-    const todayKey = ukDay.format(now);
-    const todays = a.pts.filter(p => ukDay.format(p.t) === todayKey);
-    if (tr && trToday != null && todays.length) {
-      const agAvg = todays.reduce((x, p) => x + p.v, 0) / todays.length, diff = agAvg - trToday;
-      $("agVsTr").innerHTML = `Today: Agile averages <b>${pence(agAvg)}</b> across the day and Tracker is <b>${pence(trToday)}</b>, so ` +
-        (Math.abs(diff) < 0.05 ? "they're about the same." : `Agile is <b>${p1(Math.abs(diff))}p ${diff < 0 ? "cheaper" : "dearer"}</b> if you use power evenly through the day.`);
-    } else $("agVsTr").textContent = tr ? "" : "Tracker rates couldn't be loaded for this region.";
-    const best = bestWindow(pts, +$("dur").value, now);
-    const inBest = p => best && p.t >= best.start && p.t < best.end;
-    const labels = pts.map(p => isMidnight(p.t) ? dayFmt.format(p.t) : hm(p.t));
-    const o = baseOpts();
-    o.scales.y.ticks.callback = v => v + "p";
-    o.scales.x.ticks.maxTicksLimit = 9;
-    o.plugins.nowLine = { index: curIdx, label: "NOW" };
-    if (av != null) o.plugins.hLine = { value: av, label: `AVG AHEAD ${p1(av)}p` };
-    o.scales.y.beginAtZero = true;
-    robustY(o, pts.map(p => p.v).concat(trData.filter(v => v != null)), v => p1(v) + "p");
-    o.plugins.dayRules = { times: pts.map(p => p.t) };
-    o.plugins.tooltip.callbacks = {
-      title: c => `${dhm(pts[c[0].dataIndex].t)}–${hm(pts[c[0].dataIndex].end)}`,
-      label: c => c.dataset.label === "Tracker" ? ` Tracker: ${p1(c.parsed.y)}p (daily rate)` : ` Agile: ${p1(c.parsed.y)}p per kWh`,
-      afterLabel: c => c.dataset.label !== "Tracker" && inBest(pts[c.dataIndex]) ? " Part of the cheapest window" : ""
-    };
-    const accent = css("--accent");
-    mount("cAgile", {
-      type: "bar",
-      data: { labels, datasets: [{
-        label: "Agile", order: 2,
-        data: pts.map(p => +p.v.toFixed(2)),
-        backgroundColor: pts.map(p => priceColour(p.v) + (p.end <= now ? "55" : "")),
-        hoverBackgroundColor: pts.map(p => priceColour(p.v)),
-        borderColor: pts.map(p => inBest(p) ? accent : "transparent"),
-        borderWidth: pts.map(p => inBest(p) ? 2 : 0),
-        borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", barPercentage: 0.86, categoryPercentage: 1
-      }].concat(tr ? [{ type: "line", label: "Tracker", order: 1, data: trData, borderColor: css("--ink"), backgroundColor: css("--ink"), borderDash: [6, 4], borderWidth: 1.8, pointRadius: 0, pointHoverRadius: 3, stepped: "middle", fill: false }] : []) },
-      options: o
+    const raw = history ? a.history : S.agView === "ahead" ? a.pts.filter(p => p.end > now && p.t < new Date(+now + DAY)) : a.pts;
+    const summary = history ? raw : raw.filter(p => p.end > now);
+    if (!raw.length) {
+      emptyChart("cAgile"); $("agNote").textContent = "No published rates for this period yet."; renderWindows(); return;
+    }
+    const points = history ? priceBuckets(raw, a.bounds.from, a.bounds.to, days === 30) : [];
+    if (!history) {
+      const byTime = new Map(raw.map(p => [+p.t, p]));
+      for (let t = +raw[0].t; t < +raw[raw.length - 1].end; t += HH) points.push(byTime.get(t) || { t: new Date(t), end: new Date(t + HH), v: null });
+    }
+    const average = priceMean(summary);
+    if (summary.length) {
+      const low = summary.reduce((x, p) => p.v < x.v ? p : x), high = summary.reduce((x, p) => p.v > x.v ? p : x);
+      $("sMin").textContent = pence(low.v); $("sMinT").textContent = `${dateFmt.format(low.t)} · ${hm(low.t)}`;
+      $("sMax").textContent = pence(high.v); $("sMaxT").textContent = `${dateFmt.format(high.t)} · ${hm(high.t)}`;
+      $("sAvg").textContent = pence(average);
+      const duration = summary.reduce((n, p) => n + (+p.end - +p.t), 0);
+      $("sAvgT").textContent = history ? `${days} complete days${duration < a.bounds.to - a.bounds.from ? " · partial data" : ""}` : `${summary.length} published half-hours`;
+    }
+    const trData = points.map(p => {
+      const r = tr?.rates.find(r => r.t <= p.t && r.end >= p.end);
+      return r ? r.v : null;
     });
+    $("agTrackerKey").hidden = !trData.some(v => v != null);
+    const comparable = summary.length && tr && summary.every(p => tr.rates.some(r => r.t <= p.t && r.end >= p.end));
+    if (comparable) {
+      const trackerAverage = priceMean(summary.map(p => ({ ...p, v: trackerAt(tr, p.t) })));
+      const diff = average - trackerAverage;
+      $("agVsTr").textContent = `${history ? "This period" : "Published hours ahead"}: Agile averages ${pence(average)} and Tracker ${pence(trackerAverage)} per kWh${Math.abs(diff) < .05 ? "; about the same." : `; Agile is ${p1(Math.abs(diff))}p ${diff < 0 ? "lower" : "higher"}.`} Equal use across these hours; standing charges excluded. Tracker: ${tr.name}.`;
+    } else $("agVsTr").textContent = tr ? "The Tracker comparison appears when rates are published for all hours in this view." : "Tracker is temporarily unavailable; Agile prices are shown independently.";
+    const missing = points.filter(p => p.v == null).length;
+    $("agNote").textContent = history
+      ? `${days === 7 ? "Hourly" : "Daily"} averages across the last ${days} complete UK calendar days, excluding today. The shaded band keeps half-hourly lows and highs. Curves guide the eye between averages.${missing ? ` ${missing} incomplete ${days === 7 ? "hours" : "days"} are left as gaps.` : ""} Hover or touch for values. Rates include VAT; standing charges excluded.`
+      : `Published half-hourly rates, joined by a smooth guide line. Hover or touch for the actual rate. ${S.agView === "ahead" && raw.length < 48 ? `${raw.length} of the next 48 half-hours are published so far. ` : ""}Tomorrow appears when Octopus publishes it. Green dots mark the cheapest available window. Rates include VAT; standing charges excluded.`;
+    if (S.data.agileError) $("agNote").textContent += " Refresh failed; showing the last successfully loaded prices.";
+    setFresh("agile", a.fetched, "data", 30);
+    const best = history ? null : bestWindow(a.pts, +$("dur").value, now);
+    const inBest = p => best && p.t >= best.start && p.t < best.end;
+    const accent = css("--accent"), o = baseOpts();
+    o.scales.y.beginAtZero = true; o.scales.y.ticks.callback = v => v + "p"; o.scales.y.ticks.maxTicksLimit = 6;
+    o.scales.x.ticks.maxTicksLimit = matchMedia("(max-width: 620px)").matches ? 5 : history ? 8 : 9;
+    if (!history) {
+      o.plugins.nowLine = { index: points.findIndex(p => p.t <= now && p.end > now), label: "NOW" };
+      o.plugins.dayRules = { times: points.map(p => p.t) };
+    }
+    o.plugins.tooltip.filter = item => item.dataset.role !== "band";
+    o.plugins.tooltip.callbacks = {
+      title: items => {
+        const p = points[items[0].dataIndex];
+        return days === 30 ? `${dayFmt.format(p.t)} · daily average` : `${dayFmt.format(p.t)} ${priceClock.format(p.t)}–${priceClock.format(p.end)}${days === 7 ? " · hourly average" : ""}`;
+      },
+      label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(2)}p/kWh`,
+      afterBody: items => {
+        const p = points[items[0].dataIndex];
+        return history && p.lo != null ? [` Half-hourly low–high: ${p.lo.toFixed(2)}–${p.hi.toFixed(2)}p`] : inBest(p) ? [" Cheapest available window"] : [];
+      }
+    };
+    const datasets = history ? [
+      { label: "Low", role: "band", order: 3, data: points.map(p => p.lo), borderWidth: 0, pointRadius: 0, pointHitRadius: 0 },
+      { label: "High", role: "band", order: 3, data: points.map(p => p.hi), borderWidth: 0, pointRadius: 0, pointHitRadius: 0, backgroundColor: accent + "22", fill: "-1" }
+    ] : [];
+    datasets.push({ label: history ? `Agile ${days === 7 ? "hourly" : "daily"} average` : "Agile", role: "agile", order: 1, data: points.map(p => p.v), borderColor: accent, borderWidth: 2.3, backgroundColor: accent, pointRadius: points.map(p => inBest(p) ? 3 : 0), pointBackgroundColor: css("--good"), pointHoverRadius: 4, tension: .3, cubicInterpolationMode: "monotone", spanGaps: false, fill: false });
+    if (trData.some(v => v != null)) datasets.push({ label: "Tracker", role: "tracker", order: 0, data: trData, borderColor: css("--ink"), backgroundColor: css("--ink"), borderDash: [6, 4], borderWidth: 1.7, pointRadius: 0, pointHoverRadius: 3, stepped: "before", spanGaps: false, fill: false });
+    $("cAgile").setAttribute("aria-label", `${$("agTitle").textContent}. ${$("agResolution").textContent}; prices in pence per kilowatt hour.`);
+    mount("cAgile", { type: "line", data: { labels: points.map(p => history ? dateFmt.format(p.t) : isMidnight(p.t) ? dateFmt.format(p.t) : hm(p.t)), datasets }, options: o });
     renderWindows();
+  }
+
+  function renderTracker() {
+    const tr = S.data.tracker?.region === S.region && S.data.tracker.code === S.trProduct ? S.data.tracker : null;
+    const days = priceDays(S.trView), bounds = priceBounds(days), now = new Date();
+    $("trTitle").textContent = `Octopus Tracker, last ${days} complete days`;
+    $("trAvgLabel").textContent = `${days}-day average`;
+    setTag("tagTracker", !!tr, REGIONS[S.region]);
+    ["trNow", "trToday", "trTodayT", "trTomorrow", "trAvg", "trAvgT", "trRange", "trRangeT"].forEach(id => $(id).textContent = "—");
+    $("trTomorrowT").textContent = "Awaiting publication";
+    if (!tr) {
+      emptyChart("cTracker"); setFresh("tracker", null);
+      $("trNote").textContent = S.data.trackerPending ? "Loading published Tracker prices…" : "Tracker rates couldn't be loaded for this region and version. Use Refresh to retry or select your tariff version. Agile remains available.";
+      return;
+    }
+    const today = trackerAt(tr, now), tomorrowDate = priceDayStart(priceDayOffset(ukDay.format(now), 1)), tomorrow = trackerAt(tr, tomorrowDate);
+    $("trNow").textContent = $("trToday").textContent = today == null ? "—" : pence(today);
+    $("trTodayT").textContent = dayFmt.format(now);
+    $("trTomorrow").textContent = tomorrow == null ? "—" : pence(tomorrow);
+    $("trTomorrowT").textContent = tomorrow == null ? "Awaiting publication" : dayFmt.format(tomorrowDate);
+    const points = priceBuckets(tr.rates, bounds.from, bounds.to, true), valid = points.filter(p => p.v != null);
+    if (valid.length) {
+      $("trAvg").textContent = pence(priceMean(valid));
+      $("trAvgT").textContent = `${valid.length} of ${days} days available`;
+      $("trRange").textContent = `${p1(Math.min(...valid.map(p => p.lo)))}–${p1(Math.max(...valid.map(p => p.hi)))}p`;
+      $("trRangeT").textContent = `${dateFmt.format(bounds.from)}–${dateFmt.format(new Date(+bounds.to - 1))}`;
+    }
+    $("trNote").textContent = `${tr.name} · ${REGIONS[S.region]}. One published electricity rate per UK day; steps preserve the actual daily price. History excludes today.${valid.length < days ? ` ${days - valid.length} unavailable days are left as gaps.` : ""} Unit rates include VAT; standing charges excluded. Choose the version on your agreement.${S.data.trackerError ? " Refresh failed; showing the last successfully loaded rates." : ""}`;
+    setFresh("tracker", tr.fetched, "data", 30);
+    if (!valid.length) { emptyChart("cTracker"); return; }
+    const o = baseOpts();
+    o.scales.y.beginAtZero = true; o.scales.y.ticks.callback = v => v + "p"; o.scales.y.ticks.maxTicksLimit = 6;
+    o.scales.x.ticks.maxTicksLimit = matchMedia("(max-width: 620px)").matches ? 5 : 10;
+    o.plugins.tooltip.callbacks = { title: items => dayFmt.format(points[items[0].dataIndex].t), label: c => ` Tracker: ${c.parsed.y.toFixed(2)}p/kWh` };
+    mount("cTracker", { type: "line", data: { labels: points.map(p => dateFmt.format(p.t)), datasets: [{ label: "Tracker daily rate", data: points.map(p => p.v), borderColor: css("--ink"), backgroundColor: css("--ink"), borderWidth: 2, pointRadius: days === 7 ? 3 : 2, pointHoverRadius: 5, stepped: "before", spanGaps: false }] }, options: o });
   }
 
   function renderMid() {
@@ -2114,17 +2118,12 @@ footer a { color: var(--accent); }
   }
   function renderWindows() {
     const k = +$("dur").value, now = new Date();
-    const a = S.data.agile, ci = S.data.ciForecast;
+    const a = S.data.agile;
     if (a) {
       const b = bestWindow(a.pts, k, now);
       $("wCheap").textContent = b ? `${hm(b.start)}–${hm(b.end)}` : "—";
-      $("wCheapV").textContent = b ? `${wdFmt.format(b.start)} · avg ${pence(b.avg)} · outlined on the chart` : "Not enough rates yet";
-    }
-    if (ci && ci.length) {
-      const b = bestWindow(ci, k, now);
-      $("wGreen").textContent = b ? `${hm(b.start)}–${hm(b.end)}` : "—";
-      $("wGreenV").textContent = b ? `${wdFmt.format(b.start)} · avg ${Math.round(b.avg)} g` : "—";
-    }
+      $("wCheapV").textContent = b ? `${wdFmt.format(b.start)} · avg ${pence(b.avg)} · green dots in the short Agile views` : "Not enough rates yet";
+    } else { $("wCheap").textContent = "—"; $("wCheapV").textContent = "Waiting for Agile prices"; }
   }
 
   /* ---------- static capacity charts ---------- */
@@ -2345,15 +2344,14 @@ footer a { color: var(--accent); }
     ["windMW", "Highest wind output", v => gw(v), "wind"], ["windPct", "Highest wind share", v => p1(v) + "%", "wind"],
     ["solarMW", "Highest solar output", v => gw(v), "solar"], ["renPct", "Highest renewable share", v => p1(v) + "%", "biomass"],
     ["lowPct", "Highest low-carbon share", v => p1(v) + "%", "nuclear"], ["fossilLo", "Lowest gas share", v => p1(v) + "%", "gas"],
-    ["ciLo", "Cleanest half-hour", v => Math.round(v) + " g", "--good"], ["ciHi", "Dirtiest half-hour", v => Math.round(v) + " g", "--bad"],
     ["demHi", "Highest demand", v => gw(v), "--accent"], ["demLo", "Lowest demand", v => gw(v), "--accent"],
     ["priceHi", "Highest wholesale price", v => "£" + Math.round(v) + "/MWh", "--bad"], ["priceLo", "Lowest wholesale price", v => "£" + Math.round(v) + "/MWh", "hydro"],
     ["neg", "Negative-price half-hours", v => String(v), "hydro"], ["exportHi", "Biggest net export", v => gw(v), "--good"],
-    ["greenDay", "Greenest day", v => Math.round(v) + " g avg", "--good"], ["windDay", "Windiest day", v => gw(v) + " avg", "wind"],
+    ["windDay", "Windiest day", v => gw(v) + " avg", "wind"],
     ["solarDay", "Sunniest day", v => gw(v) + " avg", "solar"], ["renDay", "Most renewable day", v => p1(v) + "%", "biomass"],
     ["demDay", "Highest-demand day", v => gw(v) + " avg", "--accent"], ["batHi", "Peak battery output", v => gw(v), "storage"]
   ];
-  const DAY_RECS = new Set(["greenDay", "windDay", "solarDay", "renDay", "demDay"]);
+  const DAY_RECS = new Set(["windDay", "solarDay", "renDay", "demDay"]);
   const monthName = ym => new Date(ym + "-15T12:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "Europe/London" });
   function renderRecords() {
     const R = S.data.rec;
@@ -2427,7 +2425,7 @@ footer a { color: var(--accent); }
     try {
       const n = await loadNow();
       S.data.now = n;
-      S.live.now = !!(n.ci && n.mix && n.inst);
+      S.live.now = !!(n.mix && n.inst);
       renderNow(n);
       if (!S.pieRange) { S.data.pie = nowPie(n) || S.data.pie; renderPies(); }
     } catch (e) { S.live.now = false; }
@@ -2455,17 +2453,62 @@ footer a { color: var(--accent); }
   }
   const refreshHistory = () => run("hist", () => loadHistory(S.range), renderHistory);
   const refreshDemand = () => run("dem", () => loadDemand(S.demRange), renderDemand);
-  const refreshCI = () => run("ci", () => loadCI(S.ciRange), () => { S.data.ciForecast = S.data.ci ? S.data.ci.fut : null; renderCI(); renderWindows(); });
-  const refreshAgile = () => run("agile", loadAgile, renderAgile);
-  try { const v = localStorage.getItem("pylon-agview"); if (v === "ahead" || v === "days") S.agView = v; } catch (e) {}
+  const priceRequests = { agile: 0, tracker: 0 };
+  async function refreshAgile() {
+    const request = ++priceRequests.agile, region = S.region, view = S.agView;
+    S.data.agilePending = true; S.data.agileError = false; renderAgile();
+    try {
+      const result = await loadAgile(region, view);
+      if (request !== priceRequests.agile || region !== S.region || view !== S.agView) return;
+      S.data.agile = result; S.live.agile = !result.historyError;
+    } catch (e) {
+      if (request !== priceRequests.agile || region !== S.region || view !== S.agView) return;
+      S.live.agile = false; S.data.agileError = true;
+    }
+    S.data.agilePending = false; renderAgile(); updateStatus();
+  }
+  async function refreshTracker() {
+    const request = ++priceRequests.tracker, region = S.region;
+    S.data.trackerPending = true; S.data.trackerError = false; renderTracker();
+    let code;
+    try {
+      await findTrackerProducts(); code = S.trProduct;
+      const result = await loadTracker(region, code);
+      if (request !== priceRequests.tracker || region !== S.region || code !== S.trProduct) return;
+      S.data.tracker = result; S.live.tracker = true;
+    } catch (e) {
+      if (request !== priceRequests.tracker || region !== S.region || (code && code !== S.trProduct)) return;
+      S.live.tracker = false; S.data.trackerError = true;
+    }
+    S.data.trackerPending = false; renderTracker(); renderAgile(); updateStatus();
+  }
+  try {
+    const v = localStorage.getItem("pylon-agview"); if (["ahead", "days", "week", "month"].includes(v)) S.agView = v;
+    const t = localStorage.getItem("pylon-trview"); if (["week", "month"].includes(t)) S.trView = t;
+    const p = localStorage.getItem("pylon-tracker"); if (/^SILVER-\d{2}-\d{2}-\d{2}$/.test(p || "")) S.trProduct = p;
+  } catch (e) {}
   document.querySelectorAll("[data-ag]").forEach(b => {
     b.setAttribute("aria-pressed", String(b.dataset.ag === S.agView));
     b.addEventListener("click", () => {
       S.agView = b.dataset.ag;
       document.querySelectorAll("[data-ag]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
       try { localStorage.setItem("pylon-agview", S.agView); } catch (e) {}
-      renderAgile();
+      refreshAgile();
     });
+  });
+  document.querySelectorAll("[data-tr]").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.tr === S.trView));
+    b.addEventListener("click", () => {
+      S.trView = b.dataset.tr;
+      document.querySelectorAll("[data-tr]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+      try { localStorage.setItem("pylon-trview", S.trView); } catch (e) {}
+      renderTracker();
+    });
+  });
+  $("trackerProduct").addEventListener("change", e => {
+    S.trProduct = e.target.value; S.data.tracker = null;
+    try { localStorage.setItem("pylon-tracker", S.trProduct); } catch (e) {}
+    refreshTracker(); renderAgile();
   });
   const refreshMid = () => run("mid", () => loadMid(S.midRange), renderMid);
   const refreshBat = () => run("bat", () => repo("battery").then(B => { if (!B.hh || !B.hh.length) throw new Error("empty"); return B; }), renderBattery);
@@ -2479,21 +2522,21 @@ footer a { color: var(--accent); }
     const due = h => force || h < 720 || cycle % 6 === 0;
     cycle++;
     return Promise.allSettled([
-      refreshNow(), refreshAgile(),
+      refreshNow(), refreshAgile(), refreshTracker(),
       S.pieRange && due(S.pieRange) ? refreshPies() : null,
       due(S.range) ? refreshHistory() : null, due(720) ? refreshYoY() : null,
-      due(S.demRange) ? refreshDemand() : null, due(S.ciRange) ? refreshCI() : null, due(S.midRange) ? refreshMid() : null,
+      due(S.demRange) ? refreshDemand() : null, due(S.midRange) ? refreshMid() : null,
       due(720) ? refreshBat() : null, due(720) ? refreshFc() : null, due(720) ? refreshRec() : null
     ]);
   }
   function rerenderAll() {
     if (S.data.now) renderNow(S.data.now);
-    renderPies(); renderHistory(); renderYoY(); renderDemand(); renderCI(); renderAgile(); renderMid(); renderCapacity();
+    renderPies(); renderHistory(); renderYoY(); renderDemand(); renderAgile(); renderTracker(); renderMid(); renderCapacity();
     renderBattery(); renderForecast(); renderRecords();
   }
 
   // segmented controls: data-attribute → state key → refresh
-  const TAGS = { pie: ["tagMix", "tagImp", "tagClean", "tagRen"], range: ["tagHist", "tagSum"], yoy: ["tagYoY"], unit: ["tagHist", "tagSum"], dem: ["tagDem", "tagDemS"], mid: ["tagMid"], ci: ["tagCIh", "tagCIs"] };
+  const TAGS = { pie: ["tagMix", "tagImp", "tagClean", "tagRen"], range: ["tagHist", "tagSum"], yoy: ["tagYoY"], unit: ["tagHist", "tagSum"], dem: ["tagDem", "tagDemS"], mid: ["tagMid"] };
   function syncHistButtons() {}
   function seg(attr, key, refresh, before) {
     document.querySelectorAll(`[data-${attr}]`).forEach(b => b.addEventListener("click", () => {
@@ -2512,21 +2555,20 @@ footer a { color: var(--accent); }
   seg("unit", "unit", refreshHistory, () => { S.data.histOk = false; });
   seg("dem", "demRange", refreshDemand, () => { S.data.demOk = false; });
   seg("mid", "midRange", refreshMid, () => { S.data.midOk = false; });
-  seg("ci", "ciRange", refreshCI, () => { S.data.ciOk = false; });
   seg("bat", "batRange", renderBattery);
   seg("rec", "recPeriod", renderRecords);
 
   const sel = $("region");
   sel.innerHTML = Object.entries(REGIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
   sel.value = S.region;
-  const setRegionLabel = () => $("regionLabel").textContent = `Octopus Agile, ${REGIONS[S.region]} region. Change region at the top of the page.`;
+  const setRegionLabel = () => $("regionLabel").textContent = `Octopus Agile and Tracker, ${REGIONS[S.region]} region. Change region at the top of the page.`;
   setRegionLabel();
   sel.addEventListener("change", () => {
-    S.region = sel.value; setRegionLabel(); S.data.agileOk = false;
+    S.region = sel.value; setRegionLabel(); S.data.agile = null; S.data.tracker = null;
     try { localStorage.setItem("pylon-region", S.region); } catch (e) {}
-    refreshAgile();
+    refreshAgile(); refreshTracker();
   });
-  $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; CACHE.clear(); refreshAll(true); });
+  $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; CACHE.clear(); PRICE_HISTORY.clear(); refreshAll(true); });
   $("dur").addEventListener("change", () => { if (S.data.agile) renderAgile(); else renderWindows(); });
 
   window.addEventListener("scroll", () => clearAllCharts(), { passive: true });
