@@ -120,11 +120,13 @@ async function prices(fromT) {
   return m;
 }
 
-// Battery units registered in the Balancing Mechanism, found by name, and their planned output (physical notifications)
+// Battery BM units: name matches plus a supplementary list verified against NESO classifications.
+// Physical notifications are planned positions, excluding accepted balancing instructions; they are not metered output.
 async function batteries() {
   const units = rows(await get(`${E}/reference/bmunits/all`));
   const re = /batter|bess|energy storage|\bstorage\b/i;
-  const bat = units.filter(u => u.fuelType !== "PS" && u.elexonBmUnit && (re.test(u.bmUnitName || "") || re.test(u.leadPartyName || "")));
+  const verified = new Set(JSON.parse(await fs.readFile(new URL("./battery-units.json", import.meta.url), "utf8")).nationalGridBmUnits);
+  const bat = units.filter(u => u.fuelType !== "PS" && u.elexonBmUnit && (re.test(u.bmUnitName || "") || re.test(u.leadPartyName || "") || (verified.has(u.nationalGridBmUnit) && /^[ET]_/.test(u.elexonBmUnit))));
   const ids = bat.map(u => u.elexonBmUnit);
   const capMW = bat.reduce((a, u) => a + Math.max(0, +u.generationCapacity || 0), 0);
   const from = Math.floor((now - 7 * DAY) / HH) * HH;

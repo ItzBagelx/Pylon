@@ -31,6 +31,13 @@ Live site: https://pylongrid.co.uk
 - Rates include VAT and exclude standing charges. Comparisons use the same available hours with equal consumption;
   they are not personalised bill estimates. UK clock changes are included in duration-weighted averages.
 
+## Battery coverage
+
+The battery chart shows published physical notifications (planned positions), not settled metered output or a whole-fleet estimate.
+The builder identifies units by registered names and supplements them with additional directly connected or embedded BM units
+verified against NESO's battery classifications in `scripts/battery-units.json`. Counts refer to BM units, not separate sites.
+Registered export capacity is the sum for the identified units; it should not be treated as a verified percentage of total operational capacity.
+
 ## Data sources
 
 NESO Carbon Intensity API (CC BY 4.0), NESO Data Portal (historic generation mix, demand data, embedded forecasts),

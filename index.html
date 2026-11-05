@@ -420,8 +420,8 @@ footer a { color: var(--accent); }
           <div class="stats two">
             <div class="stat"><span id="bNowL">Right now</span><b id="bNow">—</b><small id="bNowT">—</small></div>
             <div class="stat"><span>Fleet tracked</span><b id="bCap">—</b><small id="bCapT">—</small></div>
-            <div class="stat"><span>Supplied</span><b id="bDis">—</b><small id="bDisT">—</small></div>
-            <div class="stat"><span>Charged</span><b id="bChg">—</b><small id="bChgT">—</small></div>
+            <div class="stat"><span>Planned discharge</span><b id="bDis">—</b><small id="bDisT">—</small></div>
+            <div class="stat"><span>Planned charge</span><b id="bChg">—</b><small id="bChgT">—</small></div>
             <div class="stat"><span>Peak output</span><b id="bPk">—</b><small id="bPkT">—</small></div>
             <div class="stat"><span>Peak charging</span><b id="bPc">—</b><small id="bPcT">—</small></div>
           </div>
@@ -871,8 +871,8 @@ footer a { color: var(--accent); }
     solarcap: "<p>Installed solar capacity, mostly rooftops and small solar farms on local networks. Averaged over a year, GB solar produces about a tenth of its capacity.</p>",
     nuclear: "<p>The UK's five operating nuclear stations and when EDF expects each to stop generating. Hinkley Point C in Somerset is under construction.</p>",
     batcap: "<p>Grid-scale battery capacity in Great Britain. GW is how fast batteries can charge or discharge; GWh is how much energy they hold. Most GB batteries hold one to two hours at full power.</p><p>2020 is from RenewableUK; 2021 is worked out from Modo Energy's 2022 review; later years are Modo Energy.</p>",
-    battery: "<p>Batteries charge when power is cheap or plentiful and supply it back at busy times. Green bars are batteries supplying the grid; pink bars below the line are charging.</p><p>This uses <b>physical notifications</b>: the output each battery tells the grid operator it plans to run at, which is very close to what actually happens. It covers batteries registered in the Balancing Mechanism, about two-thirds of GB's fleet.</p>",
-    battery_figs: "<p><b>Supplied</b> and <b>Charged</b> are energy over the selected period, in megawatt-hours (MWh). Batteries lose roughly 10 to 15% of the energy in each charge and discharge.</p>",
+    battery: "<p>Green bars show planned battery discharge; pink bars show planned charging. The chart covers identified battery BM units, not every battery site in Great Britain. One site can have several BM units.</p><p>These are <b>physical notifications</b>: operators' planned positions before accepted balancing instructions. They are not meter readings, and grid instructions or response services can change actual delivery. The tracked list combines name matches with additional units classified as batteries by NESO.</p>",
+    battery_figs: "<p>Planned discharge and charge integrate the published notifications over the selected period, in megawatt-hours (MWh). They are not settled meter readings, and their difference is not a measure of battery efficiency.</p>",
     forecast: "<p><b>Wind</b> is Elexon's forecast for wind farms on the transmission network. <b>Embedded wind</b> and <b>solar</b> are NESO's forecasts for smaller sites on local networks. The chart stops where the transmission wind forecast ends, usually 2 to 3 days ahead.</p><p>Solid areas are measured; faded areas are forecast.</p>",
     forecast_figs: "<p>The highest and lowest forecast half-hours ahead, and the average for each day. Windy days usually bring cheaper Agile prices and lower carbon.</p>",
     records: "<p>The highest and lowest half-hours and days in NESO and Elexon data for the chosen period. Share records are a share of what GB used, with imports counted net.</p><p><b>New</b> means the record was set in the last 7 days. <b>2-yr</b> means it's also the record across all two years of data.</p><p>Battery records only go back to when Pylon started tracking batteries.</p>"
@@ -2275,17 +2275,17 @@ footer a { color: var(--accent); }
       { type: "line", label: "Net", data: pts.map(p => p.net), borderColor: ink, borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3, tension: 0.3, cubicInterpolationMode: "monotone", stack: "n", order: 1, fill: false }
     ] }, options: o });
     const last = pts[pts.length - 1];
-    $("bNowL").textContent = last.net >= 0 ? "Supplying now" : "Charging now";
+    $("bNowL").textContent = last.net >= 0 ? "Discharge planned" : "Charge planned";
     $("bNow").textContent = gw(Math.abs(last.net)); $("bNowT").textContent = `${hm(last.t)}–${hm(new Date(+last.t + HH))}, net`;
-    $("bCap").textContent = gw(B.capMW); $("bCapT").textContent = `${B.units} units, of about 8.5 GW in GB`;
+    $("bCap").textContent = gw(B.capMW); $("bCapT").textContent = `${B.units} BM units, registered export`;
     const dis = pts.reduce((a, p) => a + p.dis / 2, 0), chg = pts.reduce((a, p) => a + p.chg / 2, 0);
     $("bDis").textContent = energy(dis); $("bDisT").textContent = rangeTxt(h);
     $("bChg").textContent = energy(chg); $("bChgT").textContent = rangeTxt(h);
     const pk = pts.reduce((a, p) => p.net > a.net ? p : a), pc = pts.reduce((a, p) => p.net < a.net ? p : a);
     $("bPk").textContent = gw(Math.max(0, pk.net)); $("bPkT").textContent = dhm(pk.t);
     $("bPc").textContent = gw(Math.max(0, -pc.net)); $("bPcT").textContent = dhm(pc.t);
-    $("batNote").textContent = `Planned output of ${B.units} battery units registered in the Balancing Mechanism (${gw(B.capMW)}), from their physical notifications. Updated hourly.`;
-    $("batFigNote").textContent = `Over the ${rangeTxt(h)} batteries supplied ${energy(dis)} and took in ${energy(chg)}. These don't match exactly: power charged before the period can be supplied during it, and roughly 10 to 15% is lost along the way.`;
+    $("batNote").textContent = `Planned output from ${B.units} identified battery BM units (${gw(B.capMW)} registered export capacity). Not a whole-fleet or metered total: grid instructions can change actual delivery. Updated hourly.`;
+    $("batFigNote").textContent = `Over the ${rangeTxt(h)}, notified discharge was ${energy(dis)} and notified charging was ${energy(chg)}. The difference also reflects energy stored before or after the period; it is not a measured efficiency figure.`;
   }
 
   /* ---------- wind and solar outlook ---------- */
