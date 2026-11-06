@@ -34,8 +34,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Check wind and solar outlook
-        run: node --test tests/outlook.test.mjs
+      - name: Check dashboard and outlook
+        run: node --test tests/*.test.mjs
 
       - name: Build data files
         run: node scripts/build-data.mjs
@@ -61,4 +61,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
 

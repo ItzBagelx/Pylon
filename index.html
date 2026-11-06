@@ -195,9 +195,6 @@ button.lg:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px
 .stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .stat b { font: 700 18px/1.15 var(--mono); font-variant-numeric: tabular-nums; }
 .stat small { font-size: 12px; color: var(--muted); }
-.win { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
-@media (max-width: 520px) { .win { grid-template-columns: minmax(0, 1fr); } }
-.win .stat b { font-size: 20px; }
 .price-key { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 .price-key span { display: inline-flex; align-items: center; gap: 6px; }
 .price-key i { width: 10px; height: 10px; border-radius: 2px; }
@@ -332,7 +329,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dMix" role="img" aria-label="Current generation mix"></canvas></div>
             <div class="legend col" id="mixLegend"></div>
           </div>
-          <p class="note" id="mixNote">Share of GB generation this half-hour, including rooftop solar and small wind farms (NESO estimate).</p>
         </div>
         <div class="card agile-now" data-info="agile_now" data-fresh="agileNow">
           <div class="card-head"><h3>Agile price now</h3><span class="tag" id="tagAgileNow">—</span></div>
@@ -347,7 +343,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dImp" role="img" aria-label="Share of supply generated in Great Britain versus imported"></canvas></div>
             <div class="legend col" id="impLegend"></div>
           </div>
-          <p class="note" id="impNote">Share of all electricity supplied this half-hour.</p>
         </div>
         <div class="card s4" data-info="clean" data-fresh="pie">
           <div class="card-head"><h3>Clean vs fossil</h3><span class="tag" id="tagClean">—</span></div>
@@ -355,7 +350,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dClean" role="img" aria-label="Renewable, nuclear, fossil and imported shares"></canvas></div>
             <div class="legend col" id="cleanLegend"></div>
           </div>
-          <p class="note" id="cleanNote">Renewables are wind, solar, hydro and biomass.</p>
         </div>
         <div class="card s4" data-info="renewables" data-fresh="pie">
           <div class="card-head"><h3>Inside the renewables</h3><span class="tag" id="tagRen">—</span></div>
@@ -363,7 +357,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dRen" role="img" aria-label="Breakdown of renewable generation"></canvas></div>
             <div class="legend col" id="renLegend"></div>
           </div>
-          <p class="note" id="renNote">Each source's share of renewable output right now.</p>
         </div>
       </div>
     </section>
@@ -484,7 +477,6 @@ footer a { color: var(--accent); }
           <div class="card-head"><h3>Period summary</h3><span class="tag" id="tagSum">—</span></div>
           <div class="donut" style="max-width:200px;margin:0 auto"><canvas id="dSum" role="img" aria-label="Average generation mix for the selected period"></canvas></div>
           <div class="legend col" id="sumLegend"></div>
-          <p class="note" id="sumNote">Average share over the selected period.</p>
         </div>
         <div class="card s12" data-info="yoy" data-fresh="yoy">
           <div class="card-head"><h3 id="yoyTitle">Generation, the last 12 months vs the 12 months before</h3>
@@ -542,7 +534,7 @@ footer a { color: var(--accent); }
         <p id="regionLabel">Octopus Agile and Tracker, London region. Change region at the top of the page.</p>
       </div>
       <div class="grid">
-        <div class="card s8" data-info="agile" data-fresh="agile">
+        <div class="card s12" data-info="agile" data-fresh="agile">
           <div class="card-head"><h3 id="agTitle">Agile half-hourly rates</h3><span class="tag" id="tagAgile">—</span></div>
             <div class="tools price-controls"><div class="seg" role="group" aria-label="Agile view">
               <button type="button" data-ag="ahead" aria-pressed="true">Next 24 h</button>
@@ -563,21 +555,7 @@ footer a { color: var(--accent); }
             <span id="agTrackerKey" hidden><i class="price-line tracker-line"></i>Tracker daily rate</span>
           </div>
           <p class="vs" id="agVsTr"></p>
-          <p class="note" id="agNote">Tomorrow's rates appear after Octopus publishes them, usually around 4pm.</p>
-        </div>
-        <div class="card s4" data-info="besttime" data-fresh="agile">
-          <div class="card-head"><h3>Best time to plug in</h3></div>
-          <label for="dur" class="note">How long will it run?</label>
-          <select id="dur">
-            <option value="2">1 hour</option>
-            <option value="4" selected>2 hours</option>
-            <option value="6">3 hours</option>
-            <option value="8">4 hours</option>
-          </select>
-          <div class="win">
-            <div class="stat"><span>Cheapest</span><b id="wCheap">—</b><small id="wCheapV">—</small></div>
-          </div>
-          <p class="note">Finds the lowest average Agile price for this run time from the published half-hours ahead. Good for washing machines, dishwashers and EV charging.</p>
+          <p class="note" id="agNote" role="status" hidden></p>
         </div>
         <div class="card s12" data-info="tracker" data-fresh="tracker">
           <div class="card-head"><h3 id="trTitle">Octopus Tracker daily electricity prices</h3><span class="tag" id="tagTracker">—</span></div>
@@ -638,7 +616,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dCap" role="img" aria-label="Installed capacity by technology"></canvas></div>
             <div class="legend col" id="capLegend"></div>
           </div>
-          <p class="note">Gas, nuclear, solar, pumped storage and totals from UK Energy in Brief 2026. Wind split from DESNZ figures via Wikipedia. "Bio, hydro, other renewables" and "Other" are the remainders of those totals.</p>
         </div>
         <div class="card s6" data-info="flex" data-fresh="static:Modo · Q3 2026">
           <div class="card-head"><h3>Flexibility</h3><span class="tag">2025–26</span></div>
@@ -651,7 +628,6 @@ footer a { color: var(--accent); }
             <div class="donut"><canvas id="dIcCap" role="img" aria-label="Interconnector capacity by country"></canvas></div>
             <div class="legend col" id="icCapLegend"></div>
           </div>
-          <p class="note">Interconnector capacity by country, MW, from operator ratings.</p>
         </div>
         <div class="card s6" data-info="windcap" data-fresh="static:DESNZ · end 2025">
           <div class="card-head"><h3>Wind capacity, 2010–2025</h3><span class="tag">GW</span></div>
@@ -769,6 +745,7 @@ footer a { color: var(--accent); }
   const dFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
   const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+  const periodDateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
   const wdFmt = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "Europe/London" });
   const ukHour = new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/London" });
   const hm = d => tFmt.format(d);
@@ -862,7 +839,6 @@ footer a { color: var(--accent); }
     demand_figs: "<p><b>Peak vs low</b> is the average gap between each day's busiest and quietest half-hour. The early-evening peak, around 5pm to 6pm, is the hardest time of day for the grid.</p>",
     agile: "<p>The short views show published half-hourly Agile electricity rates. The 7-day view shows hourly averages; the 30-day view shows daily averages. Their shaded band retains the lowest and highest half-hourly rates. Hover or touch for exact values.</p><p>History covers complete UK calendar days, excluding today. Smooth curves guide the eye between averages; they are not additional published prices. The dashed line uses the Tracker version selected below. All unit rates include VAT and exclude standing charges.</p>",
     tracker: "<p>Octopus Tracker sets one electricity unit rate per UK day. The steps show the actual daily rates for the selected region and tariff version, with gaps where prices are unavailable.</p><p>Different Tracker versions have different prices. Select the version on your agreement. Today and tomorrow are shown separately above the history; tomorrow remains blank until Octopus publishes it. Unit rates include VAT and exclude standing charges.</p>",
-    besttime: "<p>Finds the continuous run of published half-hours with the lowest average Agile price for your chosen duration. The search stays on the upcoming prices even while you browse the history.</p>",
     wholesale: "<p>The Market Index Price is the average price of electricity traded in the short-term market for each half-hour, in £ per megawatt-hour. £100/MWh is 10p per kWh.</p><p>Gas power stations usually set the price, so it follows gas prices and drops when wind is plentiful. Bills add network costs, levies and VAT on top.</p>",
     total_cap: "<p>The maximum output of every power station in the UK added together. Actual output is much lower, because wind and solar depend on the weather and plants need maintenance.</p>",
     cap2025: "<p>Capacity by technology at the end of 2025. A gigawatt (GW) is a thousand megawatts.</p>",
@@ -1727,18 +1703,12 @@ footer a { color: var(--accent); }
     // home-grown = GB generation ÷ GB use; above 100% means GB is exporting
     const self = pie.self != null ? pie.self * 100 : 100 - imp;
     const exporting = self > 100;
-    const when = S.pieRange ? `averaged over the ${rangeTxt(S.pieRange)}` : "this half-hour";
-    const netTxt = pie.netGW == null ? "" : exporting ? `net exports of ${p1(-pie.netGW)} GW` : `net imports of ${p1(pie.netGW)} GW`;
 
     const sorted = ORDER.filter(f => p[f] > 0.05).sort((a, b) => p[b] - p[a]);
     const mixItems = sorted.map(f => ({ label: LABEL[f], value: p[f], color: col(f) }));
     donut("dMix", mixItems, { big: Math.round(self) + "%", small: "made in GB" }, pctF);
     legend("mixLegend", mixItems, pctF);
     $("dMix").setAttribute("aria-label", "Generation mix: " + sorted.map(f => `${LABEL[f]} ${Math.round(p[f])}%`).join(", "));
-    $("mixNote").textContent = (exporting
-      ? `GB generated ${Math.round(self)}% of the electricity it used ${when} and exported the rest (${netTxt}), so the pie is all GB sources.`
-      : `Share of the electricity GB used ${when}, with imports counted net of exports.`) +
-      " Includes rooftop solar and small wind farms (NESO estimate)." + (pie.gross ? " Net imports couldn't be worked out, so imports here are gross." : "");
 
     const impItems = exporting
       ? [{ label: "Generated in GB", value: 100, color: css("--accent") }]
@@ -1749,9 +1719,6 @@ footer a { color: var(--accent); }
       (exporting
         ? `<div class="lg" style="padding:6px 0"><i style="background:${css("--good")}"></i><span>Net exports</span><b>${pie.netGW == null ? "—" : p1(-pie.netGW) + " GW"}</b></div>`
         : `<button type="button" class="lg" data-i="1" aria-pressed="false"><i style="background:${col("imports")}"></i><span>Net imports</span><b>${pctF(imp)}</b></button>`);
-    $("impNote").textContent = `GB generation as a share of what GB used ${when}.` +
-      (pie.imp != null ? ` Interconnectors right now: ${p1(pie.imp)} GW in, ${p1(pie.exp)} GW out, ${netTxt}.` : netTxt ? ` Average ${netTxt}.` : "") +
-      (exporting ? " Above 100% means GB made more than it needed." : "") + (pie.sampled ? " Estimated from days spread through the year." : "");
 
     const rest = Math.max(0, 100 - ren - p.nuclear - fossil - imp);
     const cleanItems = [
@@ -1761,12 +1728,10 @@ footer a { color: var(--accent); }
     ].filter(i => i.value > 0.05);
     donut("dClean", cleanItems, { big: Math.round(fossil) + "%", small: "fossil" }, pctF);
     legend("cleanLegend", cleanItems, pctF);
-    $("cleanNote").textContent = `Renewables are wind, solar, hydro and biomass. Shares ${when}.`;
 
     const renItems = RENEW.map(f => ({ label: LABEL[f], value: ren ? p[f] / ren * 100 : 0, color: col(f) })).filter(i => i.value > 0.05).sort((a, b) => b.value - a.value);
     donut("dRen", renItems, { big: Math.round(ren) + "%", small: "of GB use" }, pctF);
     legend("renLegend", renItems, pctF);
-    $("renNote").textContent = `Each source's share of renewable output ${when}.`;
   }
 
   function renderHistory() {
@@ -1829,10 +1794,6 @@ footer a { color: var(--accent); }
     const renShare = RENEW.reduce((a, f) => a + (avg[f] || 0), 0) / sum * 100;
     donut("dSum", sumItems, { big: Math.round(renShare) + "%", small: "renewable" }, v => p1(v) + "%");
     legend("sumLegend", sumItems, v => p1(v) + "%");
-    const selfPct = self != null ? self * 100 : 100 - (avg.imports || 0) / sum * 100;
-    $("sumNote").textContent = `Average over the ${rangeTxt(S.range)}. Home-grown: ${p1(selfPct)}% of what GB used` +
-      (selfPct > 100 ? ", so GB was a net exporter." : `, with net imports of ${p1(100 - selfPct)}%.`) +
-      (pct && !meta.model && !meta.repo ? " Net imports couldn't be worked out, so imports are gross." : "") + (meta.model && meta.model.sampled ? " Net imports estimated from days spread through the year." : "");
   }
 
   // Line chart with optional forecast, a high-low band for bucketed ranges, and last year's line for comparison
@@ -1927,7 +1888,7 @@ footer a { color: var(--accent); }
     if (!y) { $("yoyTable").innerHTML = ""; $("yoyKv").innerHTML = ""; $("yoyPer").textContent = "Not available right now"; setFresh("yoy", null); return; }
     if (y.built) setFresh("yoy", y.built, "summary", 120); else setFresh("yoy", new Date(), "data", 60);
     const [c0, c1, l0, l1] = y.per || [];
-    $("yoyPer").innerHTML = c0 ? `<b>${dKey(c0)} – ${dKey(c1)}</b> vs ${dKey(l0)} – ${dKey(l1)}` : "";
+    $("yoyPer").innerHTML = c0 ? `<b>${periodDateFmt.format(noonOf(c0))} – ${periodDateFmt.format(noonOf(c1))}</b> vs ${periodDateFmt.format(noonOf(l0))} – ${periodDateFmt.format(noonOf(l1))}` : "";
     const curH = yr ? "Last 12 months" : "Last 30 days", lyH = yr ? "12 months before" : "A year earlier";
     const cleanSet = new Set(["wind", "solar", "hydro", "biomass", "nuclear"]);
     const tone = (f, dv) => Math.abs(dv) < 0.05 ? "" : cleanSet.has(f) ? (dv > 0 ? "good" : "bad") : f === "gas" ? (dv > 0 ? "bad" : "good") : "";
@@ -1971,6 +1932,7 @@ footer a { color: var(--accent); }
     const a = S.data.agile?.region === S.region ? S.data.agile : null;
     const tr = S.data.tracker?.region === S.region && S.data.tracker.code === S.trProduct ? S.data.tracker : null;
     const now = new Date(), days = priceDays(S.agView), history = days > 0;
+    $("agNote").hidden = false;
     $("agTitle").textContent = history ? `Agile prices, last ${days} complete days` : S.agView === "ahead" ? "Agile rates, next 24 hours" : "Agile rates, today and tomorrow";
     $("sMinLabel").textContent = history ? "Period lowest" : "Lowest ahead";
     $("sMaxLabel").textContent = history ? "Period highest" : "Highest ahead";
@@ -1986,7 +1948,7 @@ footer a { color: var(--accent); }
       ["agNow", "agNext", "sNow", "sNowT"].forEach(id => $(id).textContent = "—");
       $("agNextLbl").textContent = "Next slot";
       $("agNote").textContent = S.data.agilePending ? "Loading published Agile prices…" : "Agile prices are unavailable. Use Refresh to try again.";
-      setFresh("agile", null); setFresh("agileNow", null); emptyChart("cAgile"); renderWindows(); return;
+      setFresh("agile", null); setFresh("agileNow", null); emptyChart("cAgile"); return;
     }
     const cur = a.pts.find(p => p.t <= now && p.end > now);
     const next = cur && a.pts.find(p => +p.t === +cur.end);
@@ -1998,12 +1960,12 @@ footer a { color: var(--accent); }
     setFresh("agileNow", a.currentFetched || a.fetched, "data", 60);
     if (history && (a.view !== S.agView || a.historyError)) {
       $("agNote").textContent = S.data.agilePending ? "Loading historical Agile prices…" : "Historical Agile prices couldn't be loaded. The current rate above is still available. Use Refresh to retry.";
-      setTag("tagAgile", false); setFresh("agile", null); emptyChart("cAgile"); renderWindows(); return;
+      setTag("tagAgile", false); setFresh("agile", null); emptyChart("cAgile"); return;
     }
     const raw = history ? a.history : S.agView === "ahead" ? a.pts.filter(p => p.end > now && p.t < new Date(+now + DAY)) : a.pts;
     const summary = history ? raw : raw.filter(p => p.end > now);
     if (!raw.length) {
-      emptyChart("cAgile"); $("agNote").textContent = "No published rates for this period yet."; renderWindows(); return;
+      emptyChart("cAgile"); $("agNote").textContent = "No published rates for this period yet."; return;
     }
     const points = history ? priceBuckets(raw, a.bounds.from, a.bounds.to, days === 30) : [];
     if (!history) {
@@ -2031,15 +1993,13 @@ footer a { color: var(--accent); }
       $("agVsTr").textContent = `${history ? "This period" : "Published hours ahead"}: Agile averages ${pence(average)} and Tracker ${pence(trackerAverage)} per kWh${Math.abs(diff) < .05 ? "; about the same." : `; Agile is ${p1(Math.abs(diff))}p ${diff < 0 ? "lower" : "higher"}.`} Equal use across these hours; standing charges excluded. Tracker: ${tr.name}.`;
     } else $("agVsTr").textContent = tr ? "The Tracker comparison appears when rates are published for all hours in this view." : "Tracker is temporarily unavailable; Agile prices are shown independently.";
     const missing = points.filter(p => p.v == null).length;
-    $("agNote").textContent = history
-      ? `${days === 7 ? "Hourly" : "Daily"} averages across the last ${days} complete UK calendar days, excluding today. The shaded band keeps half-hourly lows and highs. Curves guide the eye between averages.${missing ? ` ${missing} incomplete ${days === 7 ? "hours" : "days"} are left as gaps.` : ""} Hover or touch for values. Rates include VAT; standing charges excluded.`
-      : `Published half-hourly rates, joined by a smooth guide line. Hover or touch for the actual rate. ${S.agView === "ahead" && raw.length < 48 ? `${raw.length} of the next 48 half-hours are published so far. ` : ""}Tomorrow appears when Octopus publishes it. Green dots mark the cheapest available window. Rates include VAT; standing charges excluded.`;
-    if (S.data.agileError) $("agNote").textContent += " Refresh failed; showing the last successfully loaded prices.";
-    if (a.savedFallback) $("agNote").textContent += " Using the site's saved published rates while the live price service is unavailable.";
-    if (a.historyStale) $("agNote").textContent += " Update unavailable; showing the last successfully loaded history.";
+    const notices = [];
+    if (missing) notices.push(`${missing} incomplete ${days === 30 ? "days" : "hours"} shown as gaps.`);
+    if (S.data.agileError || a.historyStale) notices.push("Update unavailable; showing saved prices.");
+    if (a.savedFallback) notices.push("Live prices unavailable; showing saved published rates.");
+    $("agNote").textContent = notices.join(" ");
+    $("agNote").hidden = !notices.length;
     setFresh("agile", a.fetched, "data", 30);
-    const best = history ? null : bestWindow(a.pts, +$("dur").value, now);
-    const inBest = p => best && p.t >= best.start && p.t < best.end;
     const accent = css("--accent"), o = baseOpts();
     o.scales.y.beginAtZero = true; o.scales.y.ticks.callback = v => v + "p"; o.scales.y.ticks.maxTicksLimit = 6;
     o.scales.x.ticks.maxTicksLimit = matchMedia("(max-width: 620px)").matches ? 5 : history ? 8 : 9;
@@ -2056,18 +2016,18 @@ footer a { color: var(--accent); }
       label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(2)}p/kWh`,
       afterBody: items => {
         const p = points[items[0].dataIndex];
-        return history && p.lo != null ? [` Half-hourly low–high: ${p.lo.toFixed(2)}–${p.hi.toFixed(2)}p`] : inBest(p) ? [" Cheapest available window"] : [];
+        return history && p.lo != null ? [` Half-hourly low–high: ${p.lo.toFixed(2)}–${p.hi.toFixed(2)}p`] : [];
       }
     };
     const datasets = history ? [
       { label: "Low", role: "band", order: 3, data: points.map(p => p.lo), borderWidth: 0, pointRadius: 0, pointHitRadius: 0 },
       { label: "High", role: "band", order: 3, data: points.map(p => p.hi), borderWidth: 0, pointRadius: 0, pointHitRadius: 0, backgroundColor: accent + "22", fill: "-1" }
     ] : [];
-    datasets.push({ label: history ? `Agile ${days === 7 ? "hourly" : "daily"} average` : "Agile", role: "agile", order: 1, data: points.map(p => p.v), borderColor: accent, borderWidth: 2.3, backgroundColor: accent, pointRadius: points.map(p => inBest(p) ? 3 : 0), pointBackgroundColor: css("--good"), pointHoverRadius: 4, tension: .3, cubicInterpolationMode: "monotone", spanGaps: false, fill: false });
+    datasets.push({ label: history ? `Agile ${days === 7 ? "hourly" : "daily"} average` : "Agile", role: "agile", order: 1, data: points.map(p => p.v), borderColor: accent, borderWidth: 2.3, backgroundColor: accent, pointRadius: 0, pointHoverRadius: 4, tension: .3, cubicInterpolationMode: "monotone", spanGaps: false, fill: false });
     if (trData.some(v => v != null)) datasets.push({ label: "Tracker", role: "tracker", order: 0, data: trData, borderColor: css("--ink"), backgroundColor: css("--ink"), borderDash: [6, 4], borderWidth: 1.7, pointRadius: 0, pointHoverRadius: 3, stepped: "before", spanGaps: false, fill: false });
     $("cAgile").setAttribute("aria-label", `${$("agTitle").textContent}. ${$("agResolution").textContent}; prices in pence per kilowatt hour.`);
     mount("cAgile", { type: "line", data: { labels: points.map(p => history ? dateFmt.format(p.t) : isMidnight(p.t) ? dateFmt.format(p.t) : hm(p.t)), datasets }, options: o });
-    renderWindows();
+   
   }
 
   function renderTracker() {
@@ -2132,26 +2092,6 @@ footer a { color: var(--accent); }
       rangeKey: "midRange", ms, ly: m.ly, band: accent + "2e", fmt: v => "£" + Math.round(v),
       past: { borderColor: accent, backgroundColor: grad(accent, "40", "00"), borderWidth: 1.8, pointHoverBackgroundColor: accent }
     });
-  }
-
-  function bestWindow(pts, k, now) {
-    const fut = pts.filter(p => p.t >= slot(now));
-    let best = null;
-    for (let i = 0; i + k <= fut.length; i++) {
-      let s = 0, ok = true;
-      for (let j = 0; j < k; j++) { s += fut[i + j].v; if (j && fut[i + j].t - fut[i + j - 1].t !== HH) ok = false; }
-      if (ok && (!best || s / k < best.avg)) best = { start: fut[i].t, end: new Date(+fut[i + k - 1].t + HH), avg: s / k };
-    }
-    return best;
-  }
-  function renderWindows() {
-    const k = +$("dur").value, now = new Date();
-    const a = S.data.agile;
-    if (a) {
-      const b = bestWindow(a.pts, k, now);
-      $("wCheap").textContent = b ? `${hm(b.start)}–${hm(b.end)}` : "—";
-      $("wCheapV").textContent = b ? `${wdFmt.format(b.start)} · avg ${pence(b.avg)} · green dots in the short Agile views` : "Not enough rates yet";
-    } else { $("wCheap").textContent = "—"; $("wCheapV").textContent = "Waiting for Agile prices"; }
   }
 
   /* ---------- static capacity charts ---------- */
@@ -2338,6 +2278,7 @@ footer a { color: var(--accent); }
     for (const id of ["fWnowT", "fWmaxT", "fWminT", "fSmaxT"]) $(id).textContent = "No reading available";
     $("fcDays").innerHTML = "";
     if (!F) {
+      S.live.fc = false;
       setTag("tagFc", false); setTag("tagFcS", false);
       emptyChart("cFc"); setFresh("fc", null);
       $("fcNote").textContent = "The outlook is temporarily unavailable. Use Refresh to try again.";
@@ -2345,8 +2286,11 @@ footer a { color: var(--accent); }
     }
     const points = outlookPoints(F, now);
     const future = points.filter(p => +p.t >= cut && p.wind != null && p.solar != null);
+    const delayed = !Number.isFinite(Date.parse(F.built)) || now - Date.parse(F.built) > 90 * 60000;
+    S.live.fc = !!future.length && !delayed;
     setTag("tagFc", !!future.length, "Forecast"); setTag("tagFcS", !!future.length, "Forecast");
-    setFresh("fc", F.built, "summary", 120);
+    if (delayed && future.length) for (const id of ["tagFc", "tagFcS"]) { $(id).textContent = "Delayed"; $(id).classList.add("ex"); }
+    setFresh("fc", F.built, "summary", 90);
     const wc = col("wind"), sc = col("solar");
     const o = baseOpts();
     o.scales.y.beginAtZero = true;
@@ -2389,7 +2333,7 @@ footer a { color: var(--accent); }
       $("fcDays").innerHTML = days.map(d => `<div class="dayrow"><span>${dayFmt.format(d.t)}${d.part ? " <small>(part)</small>" : ""}</span><div class="track"><i style="width:${d.wind / mx * 100}%;background:${wc}"></i><i style="width:${d.solar / mx * 100}%;background:${sc}"></i></div><b>${p1(d.wind / 1000)} + ${p1(d.solar / 1000)}</b></div>`).join("");
     }
     const issued = [F.windPublished ? `wind ${dhm(new Date(F.windPublished))}` : "", F.embeddedPublished ? `small wind/solar ${dhm(new Date(F.embeddedPublished))}` : ""].filter(Boolean).join("; ");
-    $("fcNote").textContent = "Solid: reported output. Dashed: forecast. Small wind farms and solar are estimates. " + (issued ? "Forecasts issued: " + issued + ". " : "") + (future.length ? `Outlook to ${dhm(new Date(+future.at(-1).t + HH))}. ` : "No shared forecast is available. ") + "Missing readings stay as gaps.";
+    $("fcNote").textContent = (delayed ? "Saved forecast; awaiting an update. " : "") + "Solid: reported output. Dashed: forecast. Small wind farms and solar are estimates. " + (issued ? "Forecasts issued: " + issued + ". " : "") + (future.length ? `Outlook to ${dhm(new Date(+future.at(-1).t + HH))}. ` : "No shared forecast is available. ") + "Missing readings stay as gaps.";
   }
   /* ---------- records ---------- */
   const REC_DEFS = [
@@ -2568,18 +2512,25 @@ footer a { color: var(--accent); }
   const refreshRec = () => run("rec", () => repo("records"), renderRecords);
   const refreshYoY = () => run("yoy", () => loadYoY(S.yoyRange), renderYoY);
 
-  // every 5 minutes refresh the live panels; ranges of 30 days or more only every 30 minutes
-  let cycle = 0;
+  // Use elapsed time: background tabs can pause timers for hours.
+  let lastRefreshAt = 0, lastSummaryRefreshAt = 0;
   function refreshAll(force) {
-    const due = h => force || h < 720 || cycle % 6 === 0;
-    cycle++;
+    const now = Date.now(), summariesDue = force || now - lastSummaryRefreshAt >= 30 * 60000;
+    const due = h => h < 720 || summariesDue;
+    lastRefreshAt = now;
+    if (summariesDue) lastSummaryRefreshAt = now;
     return Promise.allSettled([
       refreshNow(), refreshAgile(), refreshTracker(),
       S.pieRange && due(S.pieRange) ? refreshPies() : null,
       due(S.range) ? refreshHistory() : null, due(720) ? refreshYoY() : null,
       due(S.demRange) ? refreshDemand() : null, due(S.midRange) ? refreshMid() : null,
-      due(720) ? refreshBat() : null, due(720) ? refreshFc() : null, due(720) ? refreshRec() : null
+      refreshBat(), refreshFc(), due(720) ? refreshRec() : null
     ]);
+  }
+  function resumeRefresh() {
+    if (document.hidden || Date.now() - lastRefreshAt < 60000) return;
+    CACHE.clear(); PRICE_HISTORY.clear();
+    return refreshAll(true);
   }
   function rerenderAll() {
     if (S.data.now) renderNow(S.data.now);
@@ -2621,7 +2572,6 @@ footer a { color: var(--accent); }
     refreshAgile(); refreshTracker();
   });
   $("refresh").addEventListener("click", () => { $("statusText").textContent = "Refreshing"; CACHE.clear(); PRICE_HISTORY.clear(); refreshAll(true); });
-  $("dur").addEventListener("change", () => { if (S.data.agile) renderAgile(); else renderWindows(); });
 
   window.addEventListener("scroll", () => clearAllCharts(), { passive: true });
   document.addEventListener("pointerdown", e => { if (!(e.target && e.target.closest && e.target.closest("canvas"))) clearAllCharts(); }, { passive: true });
@@ -2638,10 +2588,12 @@ footer a { color: var(--accent); }
   renderCapacity();
   refreshAll(true);
   setInterval(() => refreshAll(false), 5 * 60 * 1000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshNow(); });
+  document.addEventListener("visibilitychange", resumeRefresh);
+  window.addEventListener("focus", resumeRefresh);
 })();
 </script>
 
 </body>
 </html>
+
 
