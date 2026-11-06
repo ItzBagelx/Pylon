@@ -9,6 +9,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { buildAgilePrices } from "./build-agile.mjs";
+import { assembleOutlook } from "./build-outlook.mjs";
 
 const E = "https://data.elexon.co.uk/bmrs/api/v1";
 const NESO = "https://api.neso.energy/api/3/action";
@@ -157,25 +158,32 @@ async function batteries() {
   return { hh, units: ids.length, capMW };
 }
 
+const csvNumber = value => value == null || String(value).trim() === "" ? null : Number(value);
 async function embeddedForecast() {
-  const pkg = await get(`${NESO}/package_show?id=embedded-wind-and-solar-forecasts`);
+  const pkg = await get(`${NESO}/package_show?id=embedded-wind-and-solar-forecasts`, { timeout: 45000, tries: 2 });
   const res = pkg.result.resources.find(r => r.name === "Embedded Solar and Wind Forecast");
-  const list = csv(await get(res.url, { text: true }));
-  return list.map(r => ({ t: sp(r.SETTLEMENT_DATE.slice(0, 10), +r.SETTLEMENT_PERIOD), wind: +r.EMBEDDED_WIND_FORECAST, solar: +r.EMBEDDED_SOLAR_FORECAST, capW: +r.EMBEDDED_WIND_CAPACITY, capS: +r.EMBEDDED_SOLAR_CAPACITY }))
+  const list = csv(await get(res.url, { text: true, timeout: 45000, tries: 2 }));
+  const result = list.map(r => ({ t: sp(r.SETTLEMENT_DATE.slice(0, 10), +r.SETTLEMENT_PERIOD), wind: csvNumber(r.EMBEDDED_WIND_FORECAST), solar: csvNumber(r.EMBEDDED_SOLAR_FORECAST), capW: csvNumber(r.EMBEDDED_WIND_CAPACITY), capS: csvNumber(r.EMBEDDED_SOLAR_CAPACITY) }))
     .filter(r => isFinite(r.t)).sort((a, b) => a.t - b.t);
+  result.published = res.last_modified ? res.last_modified + (/(Z|[+-]\d\d:\d\d)$/.test(res.last_modified) ? "" : "Z") : null;
+  return result;
 }
 
 async function demandUpdate() {
-  const list = csv(await get(DDU, { text: true }));
-  return list.map(r => ({ t: sp(r.SETTLEMENT_DATE.slice(0, 10), +r.SETTLEMENT_PERIOD), act: r.FORECAST_ACTUAL_INDICATOR === "A", wind: +r.EMBEDDED_WIND_GENERATION, solar: +r.EMBEDDED_SOLAR_GENERATION, capW: +r.EMBEDDED_WIND_CAPACITY, capS: +r.EMBEDDED_SOLAR_CAPACITY }))
+  const list = csv(await get(DDU, { text: true, timeout: 45000, tries: 2 }));
+  return list.map(r => ({ t: sp(r.SETTLEMENT_DATE.slice(0, 10), +r.SETTLEMENT_PERIOD), act: r.FORECAST_ACTUAL_INDICATOR === "A", wind: csvNumber(r.EMBEDDED_WIND_GENERATION), solar: csvNumber(r.EMBEDDED_SOLAR_GENERATION), capW: csvNumber(r.EMBEDDED_WIND_CAPACITY), capS: csvNumber(r.EMBEDDED_SOLAR_CAPACITY) }))
     .filter(r => isFinite(r.t)).sort((a, b) => a.t - b.t);
 }
 
 async function windForecast() {
-  const list = rows(await get(`${E}/datasets/WINDFOR?publishDateTimeFrom=${iso(now - 10 * 36e5)}&publishDateTimeTo=${iso(now)}&format=json`));
+  const list = rows(await get(`${E}/datasets/WINDFOR?publishDateTimeFrom=${iso(now - 10 * 36e5)}&publishDateTimeTo=${iso(now)}&format=json`, { timeout: 45000, tries: 2 }));
   const best = new Map();
   list.forEach(r => { const b = best.get(r.startTime); if (!b || r.publishTime > b.publishTime) best.set(r.startTime, r); });
   return [...best.values()].map(r => ({ t: Date.parse(r.startTime), mw: r.generation, pub: r.publishTime })).sort((a, b) => a.t - b.t);
+}
+
+async function windOutturn() {
+  return rows(await get(`${E}/datasets/FUELHH/stream?settlementDateFrom=${sday(now - 3 * DAY)}&settlementDateTo=${sday(now)}&fuelType=WIND`, { timeout: 45000, tries: 2 }));
 }
 
 /* ---------------- daily aggregates ---------------- */
@@ -327,6 +335,28 @@ async function step(name, fn) {
 // Save regional price history first so it is available even if a later grid-data source fails.
 await step("agilePrices", () => buildAgilePrices());
 
+// Keep the outlook independent of slower historic-grid and battery rebuilds.
+const [ef, du, wf, wa] = await Promise.all([
+  step("embeddedForecast", embeddedForecast),
+  step("demandUpdate", demandUpdate),
+  step("windForecast", windForecast),
+  step("windOutturn", windOutturn)
+]);
+{
+  // embedded wind and solar for the live views: NESO's outturn estimate where it exists, then its forecast
+  const m = new Map();
+  if (du) du.forEach(r => { if (r.t >= now - 8 * DAY && r.t <= now + 3 * DAY) m.set(r.t, [r.t, r0(r.wind), r0(r.solar), r.act ? 1 : 0]); });
+  if (ef) ef.forEach(r => { if (r.t <= now + 3 * DAY) { const e = m.get(r.t); if (!e || !e[3]) m.set(r.t, [r.t, r0(r.wind), r0(r.solar), 0]); } });
+  const cap = (ef && ef[0]) ? { wind: ef[0].capW, solar: ef[0].capS } : du && du.length ? { wind: du[du.length - 1].capW, solar: du[du.length - 1].capS } : null;
+  if (m.size) await write("embedded.json", { built: meta.built, cap, hh: [...m.values()].sort((a, b) => a[0] - b[0]) });
+
+  await step("outlook", async () => write("forecast.json", assembleOutlook({
+    now, windActual: wa || [], demandUpdate: du || [], embeddedForecast: ef || [], windForecast: wf || [],
+    previous: await readJSON("forecast.json", null), cap, embeddedPublished: ef?.published || null
+  })));
+}
+
+
 // bump VERSION whenever the way days are built changes, so the whole history is rebuilt on the next run
 const VERSION = 2;
 let state = await readJSON("daily.json", null);
@@ -394,32 +424,8 @@ if (bat) {
   await write("battery.json", { built: meta.built, units: bat.units, capMW: r0(bat.capMW), hh });
 }
 
-const [ef, du, wf] = await Promise.all([
-  step("embeddedForecast", embeddedForecast),
-  step("demandUpdate", demandUpdate),
-  step("windForecast", windForecast)
-]);
-{
-  // embedded wind and solar for the live views: NESO's outturn estimate where it exists, then its forecast
-  const m = new Map();
-  if (du) du.forEach(r => { if (r.t >= now - 8 * DAY && r.t <= now + 3 * DAY) m.set(r.t, [r.t, r0(r.wind), r0(r.solar), r.act ? 1 : 0]); });
-  if (ef) ef.forEach(r => { if (r.t <= now + 3 * DAY) { const e = m.get(r.t); if (!e || !e[3]) m.set(r.t, [r.t, r0(r.wind), r0(r.solar), 0]); } });
-  const cap = (ef && ef[0]) ? { wind: ef[0].capW, solar: ef[0].capS } : du && du.length ? { wind: du[du.length - 1].capW, solar: du[du.length - 1].capS } : null;
-  if (m.size) await write("embedded.json", { built: meta.built, cap, hh: [...m.values()].sort((a, b) => a[0] - b[0]) });
-
-  // forecast: transmission wind (Elexon WINDFOR) and embedded wind and solar (NESO), plus the last 48 hours of actuals
-  const past = (mixRows || []).map(r => [mixTime(r, state.shift || {}), +r.WIND || 0, +r.WIND_EMB || 0, +r.SOLAR || 0])
-    .filter(x => x[0] >= now - 2 * DAY).sort((a, b) => a[0] - b[0]);
-  const fut = [];
-  if (ef) ef.filter(r => r.t >= now - HH && r.t <= now + 7 * DAY).forEach(r => fut.push([r.t, null, r0(r.wind), r0(r.solar)]));
-  if (wf && wf.length) {
-    // WINDFOR is hourly: fill each half-hour from the nearest forecast hour
-    const at = t => { let best = null; for (const x of wf) if (!best || Math.abs(x.t - t) < Math.abs(best.t - t)) best = x; return best && Math.abs(best.t - t) <= 36e5 ? best.mw : null; };
-    fut.forEach(x => x[1] = at(x[0]));
-  }
-  await write("forecast.json", { built: meta.built, windPublished: wf && wf.length ? wf[wf.length - 1].pub : null, past, fut, cap });
-}
 
 await write("meta.json", meta);
 log("done", JSON.stringify(meta.ok));
+
 

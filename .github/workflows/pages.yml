@@ -34,6 +34,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Check wind and solar outlook
+        run: node --test tests/outlook.test.mjs
+
       - name: Build data files
         run: node scripts/build-data.mjs
         continue-on-error: true
@@ -58,3 +61,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+

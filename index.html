@@ -440,18 +440,18 @@ footer a { color: var(--accent); }
         <div class="card s8" data-info="forecast" data-fresh="fc">
           <div class="card-head"><h3>Wind and solar, past and forecast</h3><span class="tag" id="tagFc">—</span></div>
           <div class="chart"><canvas id="cFc" aria-label="Wind and solar output, last two days and forecast"></canvas></div>
-          <p class="note" id="fcNote">Solid is measured, faded is forecast.</p>
+          <p class="note" id="fcNote">Solid is reported output; dashed is forecast. Small wind farms and solar are estimated.</p>
         </div>
         <div class="card s4" data-info="forecast_figs" data-fresh="fc">
           <div class="card-head"><h3>Outlook figures</h3><span class="tag" id="tagFcS">—</span></div>
           <div class="stats two">
-            <div class="stat"><span>Wind now</span><b id="fWnow">—</b><small id="fWnowT">—</small></div>
+            <div class="stat"><span>Latest wind</span><b id="fWnow">—</b><small id="fWnowT">—</small></div>
             <div class="stat"><span>Windiest ahead</span><b id="fWmax">—</b><small id="fWmaxT">—</small></div>
             <div class="stat"><span>Calmest ahead</span><b id="fWmin">—</b><small id="fWminT">—</small></div>
             <div class="stat"><span>Sunniest ahead</span><b id="fSmax">—</b><small id="fSmaxT">—</small></div>
           </div>
           <div class="bars" id="fcDays"></div>
-          <p class="note">Average wind (blue) and solar (yellow) output for each day ahead.</p>
+          <p class="note">Average wind (blue) and solar (yellow) over the available forecast hours. (part) marks an incomplete day.</p>
         </div>
       </div>
     </section>
@@ -873,8 +873,8 @@ footer a { color: var(--accent); }
     batcap: "<p>Grid-scale battery capacity in Great Britain. GW is how fast batteries can charge or discharge; GWh is how much energy they hold. Most GB batteries hold one to two hours at full power.</p><p>2020 is from RenewableUK; 2021 is worked out from Modo Energy's 2022 review; later years are Modo Energy.</p>",
     battery: "<p>Green bars show planned battery discharge; pink bars show planned charging. The chart covers identified battery BM units, not every battery site in Great Britain. One site can have several BM units.</p><p>These are <b>physical notifications</b>: operators' planned positions before accepted balancing instructions. They are not meter readings, and grid instructions or response services can change actual delivery. The tracked list combines name matches with additional units classified as batteries by NESO.</p>",
     battery_figs: "<p>Planned discharge and charge integrate the published notifications over the selected period, in megawatt-hours (MWh). They are not settled meter readings, and their difference is not a measure of battery efficiency.</p>",
-    forecast: "<p><b>Wind</b> is Elexon's forecast for wind farms on the transmission network. <b>Embedded wind</b> and <b>solar</b> are NESO's forecasts for smaller sites on local networks. The chart stops where the transmission wind forecast ends, usually 2 to 3 days ahead.</p><p>Solid areas are measured; faded areas are forecast.</p>",
-    forecast_figs: "<p>The highest and lowest forecast half-hours ahead, and the average for each day. Windy days usually bring cheaper Agile prices and lower carbon.</p>",
+    forecast: "<p><b>Wind</b> combines large wind farms, metered by Elexon, with NESO's estimates for small farms. <b>Solar</b> is NESO's estimate for solar panels. The two curves show their output separately in GW.</p><p><b>Solid</b> lines show reported outturn. <b>Dashed</b> lines show forecasts, including recent periods where outturn is not yet available. Small-farm wind and solar are estimates even in the reported history. Missing readings remain gaps.</p><p>The chart covers the last 48 hours and the shared forecast window, up to 3 days ahead. Hover or touch for the half-hour's values and whether they are forecasts.</p>",
+    forecast_figs: "<p><b>Latest wind</b> combines the latest metered large-farm reading with the small-farm estimate for that same half-hour. Its timestamp says when the small-farm value is a forecast.</p><p>The other figures are the highest and lowest forecast half-hours from the current half-hour onwards. Daily averages use the available forecast hours; <b>(part)</b> marks an incomplete day.</p>",
     records: "<p>The highest and lowest half-hours and days in NESO and Elexon data for the chosen period. Share records are a share of what GB used, with imports counted net.</p><p><b>New</b> means the record was set in the last 7 days. <b>2-yr</b> means it's also the record across all two years of data.</p><p>Battery records only go back to when Pylon started tracking batteries.</p>"
   };
 
@@ -2317,56 +2317,80 @@ footer a { color: var(--accent); }
   }
 
   /* ---------- wind and solar outlook ---------- */
+  function outlookPoints(F, now = Date.now()) {
+    const cut = Math.floor(now / HH) * HH, from = cut - 2 * DAY;
+    const rows = [...(F.past || []), ...(F.fut || [])];
+    const valid = row => Array.isArray(row) && Number.isFinite(row[0]);
+    const future = rows.filter(row => valid(row) && row[0] >= cut && row.slice(1, 4).every(Number.isFinite));
+    const end = Math.min(cut + 3 * DAY, future.length ? Math.max(...future.map(row => row[0])) + HH : cut);
+    const byTime = new Map(rows.filter(valid).map(row => [row[0], row]));
+    const points = [];
+    for (let t = from; t < end; t += HH) {
+      const row = byTime.get(t);
+      const wind = row && Number.isFinite(row[1]) && Number.isFinite(row[2]) ? row[1] + row[2] : null;
+      points.push({ t: new Date(t), wind, solar: row && Number.isFinite(row[3]) ? row[3] : null, flags: row ? F.v >= 2 ? row[4] || 0 : t >= cut ? 3 : 0 : 0 });
+    }
+    return points;
+  }
   function renderForecast() {
-    const F = S.data.fc;
-    setTag("tagFc", !!F, "Forecast"); setTag("tagFcS", !!F, "Forecast");
-    if (!F) { emptyChart("cFc"); setFresh("fc", null); return; }
-    setFresh("fc", F.windPublished || F.built, "data", 360);
-    const past = F.past.map(r => ({ t: new Date(r[0]), w: r[1], e: r[2], s: r[3] }));
-    const lastPast = past.length ? +past[past.length - 1].t : 0;
-    // stop where Elexon's transmission wind forecast ends, so the stack doesn't drop off a cliff
-    const fut = F.fut.filter(r => r[1] != null && r[0] > lastPast).map(r => ({ t: new Date(r[0]), w: r[1], e: r[2], s: r[3] }));
-    const all = past.concat(fut), n = past.length;
-    if (!all.length) { emptyChart("cFc"); return; }
+    const F = S.data.fc, now = Date.now(), cut = Math.floor(now / HH) * HH;
+    for (const id of ["fWnow", "fWmax", "fWmin", "fSmax"]) $(id).textContent = "—";
+    for (const id of ["fWnowT", "fWmaxT", "fWminT", "fSmaxT"]) $(id).textContent = "No reading available";
+    $("fcDays").innerHTML = "";
+    if (!F) {
+      setTag("tagFc", false); setTag("tagFcS", false);
+      emptyChart("cFc"); setFresh("fc", null);
+      $("fcNote").textContent = "The outlook is temporarily unavailable. Use Refresh to try again.";
+      return;
+    }
+    const points = outlookPoints(F, now);
+    const future = points.filter(p => +p.t >= cut && p.wind != null && p.solar != null);
+    setTag("tagFc", !!future.length, "Forecast"); setTag("tagFcS", !!future.length, "Forecast");
+    setFresh("fc", F.built, "summary", 120);
     const wc = col("wind"), sc = col("solar");
-    const fade = (solid, faint) => ({ backgroundColor: solid, segment: { backgroundColor: c => c.p0DataIndex >= n - 1 ? faint : solid, borderDash: c => c.p0DataIndex >= n - 1 ? [4, 3] : undefined } });
     const o = baseOpts();
-    o.scales.y.stacked = true; o.scales.y.beginAtZero = true;
+    o.scales.y.beginAtZero = true;
     o.scales.y.ticks.callback = v => (v / 1000) + " GW";
     o.scales.x.ticks.maxTicksLimit = 7;
-    o.plugins.nowLine = { index: n - 1, label: "NOW" };
-    o.plugins.dayRules = { times: all.map(p => p.t) };
-    o.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
+    o.plugins.nowLine = { index: (now - +points[0].t) / HH, label: "NOW" };
+    o.plugins.dayRules = { times: points.map(p => p.t) };
+    o.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "line", boxWidth: 18, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
+    const forecast = (p, role) => +p.t >= cut || !!(p.flags & (role === "wind" ? 3 : 2));
     o.plugins.tooltip.callbacks = {
-      title: c => dhm(all[c[0].dataIndex].t) + (c[0].dataIndex >= n ? " · forecast" : ""),
-      label: c => ` ${c.dataset.label}: ${gw(c.parsed.y)}`,
-      footer: c => { const p = all[c[0].dataIndex]; return `Wind total: ${gw(p.w + p.e)}`; }
+      title: c => { const t = points[c[0].dataIndex].t; return `${dhm(t)}–${hm(new Date(+t + HH))}`; },
+      label: c => {
+        const p = points[c.dataIndex], wind = c.dataset.role === "wind";
+        const kind = wind ? p.flags & 1 ? "forecast" : p.flags & 2 ? "includes small-farm forecast" : "metered + small-farm estimate" : p.flags & 2 ? "forecast" : "estimate";
+        return ` ${c.dataset.label}: ${gw(c.parsed.y)} · ${kind}`;
+      }
     };
-    o.plugins.tooltip.footerColor = css("--ink");
-    const line = { pointRadius: 0, pointHoverRadius: 3, borderWidth: 1, tension: 0.35, cubicInterpolationMode: "monotone" };
-    mount("cFc", { type: "line", data: { labels: all.map(p => dhm(p.t)), datasets: [
-      Object.assign({ label: "Wind (large farms)", data: all.map(p => p.w), borderColor: wc, fill: "origin", stack: "f" }, line, fade(wc + "dd", wc + "55")),
-      Object.assign({ label: "Embedded wind", data: all.map(p => p.e), borderColor: wc + "99", fill: "-1", stack: "f" }, line, fade(wc + "88", wc + "30")),
-      Object.assign({ label: "Solar", data: all.map(p => p.s), borderColor: sc, fill: "-1", stack: "f" }, line, fade(sc + "dd", sc + "55"))
-    ] }, options: o });
-    const nowP = past[past.length - 1];
-    if (nowP) { $("fWnow").textContent = gw(nowP.w + nowP.e); $("fWnowT").textContent = dhm(nowP.t) + ", measured"; }
-    if (fut.length) {
-      const wmx = fut.reduce((a, p) => p.w + p.e > a.w + a.e ? p : a), wmn = fut.reduce((a, p) => p.w + p.e < a.w + a.e ? p : a);
-      const smx = fut.reduce((a, p) => p.s > a.s ? p : a);
-      $("fWmax").textContent = gw(wmx.w + wmx.e); $("fWmaxT").textContent = dhm(wmx.t);
-      $("fWmin").textContent = gw(wmn.w + wmn.e); $("fWminT").textContent = dhm(wmn.t);
-      $("fSmax").textContent = gw(smx.s); $("fSmaxT").textContent = dhm(smx.t);
-      const byDay = new Map();
-      fut.forEach(p => { const k = ukDay.format(p.t); const e = byDay.get(k) || { t: p.t, w: 0, s: 0, n: 0 }; e.w += p.w + p.e; e.s += p.s; e.n++; byDay.set(k, e); });
-      const days = [...byDay.values()].map(e => ({ t: e.t, w: e.w / e.n, s: e.s / e.n, part: e.n < 40 }));
-      const mx = Math.max(...days.map(d => d.w + d.s), 1);
-      $("fcDays").innerHTML = days.map(d => `<div class="dayrow"><span>${dayFmt.format(d.t)}${d.part ? " <small>(part)</small>" : ""}</span><div class="track"><i style="width:${d.w / mx * 100}%;background:${wc}"></i><i style="width:${d.s / mx * 100}%;background:${sc}"></i></div><b>${p1(d.w / 1000)} + ${p1(d.s / 1000)}</b></div>`).join("");
+    const dataset = (label, role, colour) => ({
+      label, role, data: points.map(p => p[role]), borderColor: colour, backgroundColor: colour + "12",
+      fill: "origin", spanGaps: false, pointRadius: 0, pointHoverRadius: 3, borderWidth: 2,
+      tension: 0.3, cubicInterpolationMode: "monotone",
+      segment: { borderDash: c => forecast(points[c.p0DataIndex], role) || forecast(points[c.p1DataIndex], role) ? [5, 4] : undefined }
+    });
+    mount("cFc", { type: "line", data: { labels: points.map(p => dhm(p.t)), datasets: [dataset("Wind", "wind", wc), dataset("Solar", "solar", sc)] }, options: o });
+    const latest = points.filter(p => +p.t < cut && !(p.flags & 1) && p.wind != null).at(-1);
+    if (latest) {
+      $("fWnow").textContent = gw(latest.wind);
+      $("fWnowT").textContent = dhm(latest.t) + (latest.flags & 2 ? " · small farms forecast" : " · small farms estimated") + (now - latest.t > 2 * 36e5 ? " · delayed" : "");
     }
-    $("fcNote").textContent = (F.windPublished ? `Wind forecast published by Elexon at ${hm(new Date(F.windPublished))}. ` : "") +
-      `Embedded wind and solar from NESO` + (F.cap ? ` (${gw(F.cap.wind)} of small wind farms and ${gw(F.cap.solar)} of solar)` : "") + ". Solid is measured, faded is forecast.";
+    if (future.length) {
+      const wmx = future.reduce((a, p) => p.wind > a.wind ? p : a), wmn = future.reduce((a, p) => p.wind < a.wind ? p : a);
+      const smx = future.reduce((a, p) => p.solar > a.solar ? p : a);
+      $("fWmax").textContent = gw(wmx.wind); $("fWmaxT").textContent = dhm(wmx.t);
+      $("fWmin").textContent = gw(wmn.wind); $("fWminT").textContent = dhm(wmn.t);
+      $("fSmax").textContent = gw(smx.solar); $("fSmaxT").textContent = dhm(smx.t);
+      const byDay = new Map();
+      future.forEach(p => { const key = ukDay.format(p.t), e = byDay.get(key) || { key, t: p.t, wind: 0, solar: 0, n: 0 }; e.wind += p.wind; e.solar += p.solar; e.n++; byDay.set(key, e); });
+      const days = [...byDay.values()].map(e => ({ ...e, wind: e.wind / e.n, solar: e.solar / e.n, part: e.n * HH < priceDayStart(priceDayOffset(e.key, 1)) - priceDayStart(e.key) }));
+      const mx = Math.max(...days.map(d => d.wind + d.solar), 1);
+      $("fcDays").innerHTML = days.map(d => `<div class="dayrow"><span>${dayFmt.format(d.t)}${d.part ? " <small>(part)</small>" : ""}</span><div class="track"><i style="width:${d.wind / mx * 100}%;background:${wc}"></i><i style="width:${d.solar / mx * 100}%;background:${sc}"></i></div><b>${p1(d.wind / 1000)} + ${p1(d.solar / 1000)}</b></div>`).join("");
+    }
+    const issued = [F.windPublished ? `wind ${dhm(new Date(F.windPublished))}` : "", F.embeddedPublished ? `small wind/solar ${dhm(new Date(F.embeddedPublished))}` : ""].filter(Boolean).join("; ");
+    $("fcNote").textContent = "Solid: reported output. Dashed: forecast. Small wind farms and solar are estimates. " + (issued ? "Forecasts issued: " + issued + ". " : "") + (future.length ? `Outlook to ${dhm(new Date(+future.at(-1).t + HH))}. ` : "No shared forecast is available. ") + "Missing readings stay as gaps.";
   }
-
   /* ---------- records ---------- */
   const REC_DEFS = [
     ["windMW", "Highest wind output", v => gw(v), "wind"], ["windPct", "Highest wind share", v => p1(v) + "%", "wind"],
@@ -2620,3 +2644,4 @@ footer a { color: var(--accent); }
 
 </body>
 </html>
+
