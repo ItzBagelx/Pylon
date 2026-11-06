@@ -25,6 +25,7 @@ Live site: https://pylongrid.co.uk
 ## Price views
 
 - Agile shows published half-hourly rates for the next 24 hours or today and tomorrow.
+- Regional Agile history is saved by `scripts/build-agile.mjs` during each data build, so long views can load without a live browser API request. Failed builds retain the previous files; the browser can fall back to the public API.
 - Its 7-day history uses hourly averages; its 30-day history uses daily averages. Both cover complete UK calendar days
   before today. Shaded bands retain half-hourly lows and highs, and missing periods remain gaps.
 - Tracker has a separate daily-price chart, 7-day and 30-day history, today/tomorrow rates when published, and a tariff-version selector.

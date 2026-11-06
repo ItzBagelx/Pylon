@@ -1276,12 +1276,22 @@ footer a { color: var(--accent); }
     return [...records.values()].sort((a, b) => a.t - b.t);
   }
   const PRICE_HISTORY = new Map();
-  async function priceHistory(code, region, from, to) {
+  async function savedAgile(region) {
+    const data = await repo("agile-" + region);
+    if (data.region !== region || !/^AGILE-/.test(data.product || "") || !Array.isArray(data.hh) || !Number.isFinite(Date.parse(data.built))) throw new Error("Invalid saved Agile data");
+    if (Date.now() - Date.parse(data.built) > 48 * 36e5) throw new Error("Saved Agile data is too old");
+    const pts = data.hh.filter(r => r.length === 3 && r.every(v => typeof v === "number" && Number.isFinite(v)) && r[1] > r[0])
+      .map(r => ({ t: new Date(r[0]), end: new Date(r[1]), v: r[2] })).sort((a, b) => a.t - b.t);
+    return { ...data, pts };
+  }
+  async function priceHistory(code, region, from, to, saved) {
     const key = [code, region, +from, +to].join(":");
     const hit = PRICE_HISTORY.get(key);
     if (hit && Date.now() - hit.at < 30 * 60000) return hit.value;
-    const value = await octopusRates(code, region, from, to);
-    if (!value.length) throw new Error("No historic rates");
+    const available = saved?.product === code && saved.region === region && saved.pts.length && saved.pts[0].t <= from && saved.pts[saved.pts.length - 1].end >= to;
+    const pts = available ? saved.pts.filter(p => p.t < to && p.end > from).map(p => ({ ...p, t: new Date(Math.max(+p.t, +from)), end: new Date(Math.min(+p.end, +to)) })) : await octopusRates(code, region, from, to);
+    if (!pts.length) throw new Error("No historic rates");
+    const value = { pts, fetched: available ? new Date(saved.built) : new Date(), source: available ? "saved" : "live" };
     PRICE_HISTORY.set(key, { at: Date.now(), value });
     if (PRICE_HISTORY.size > 30) PRICE_HISTORY.delete(PRICE_HISTORY.keys().next().value);
     return value;
@@ -1289,14 +1299,30 @@ footer a { color: var(--accent); }
   async function loadAgile(region, view) {
     const today = ukDay.format(new Date());
     const from = priceDayStart(today), end = priceDayStart(priceDayOffset(today, 2));
-    const prod = await findAgileProduct();
+    const saved = await savedAgile(region).catch(() => null);
+    const prod = saved?.product || await findAgileProduct();
     const days = priceDays(view), bounds = priceBounds(days);
-    const [pts, past] = await Promise.all([
-      octopusRates(prod, region, from, end),
-      days ? priceHistory(prod, region, bounds.from, bounds.to).catch(() => null) : Promise.resolve([])
-    ]);
-    if (!pts.length) throw new Error("empty");
-    return { pts, history: past, historyError: days > 0 && !past, bounds, product: prod, region, view, fetched: new Date() };
+    const savedNow = saved?.pts.filter(p => p.t < end && p.end > from) || [];
+    if (days) {
+      // History must not depend on a successful current/tomorrow-price request.
+      const previous = S.data.agile?.region === region && S.data.agile.product === prod ? S.data.agile : null;
+      const current = savedNow.length ? savedNow : previous?.pts || [];
+      const [loaded, pts] = await Promise.all([
+        priceHistory(prod, region, bounds.from, bounds.to, saved).catch(() => null),
+        current.length ? Promise.resolve(current) : octopusRates(prod, region, from, end).catch(() => [])
+      ]);
+      const retained = !loaded && previous?.view === view && +previous.bounds.from === +bounds.from && +previous.bounds.to === +bounds.to && previous.history?.length;
+      const past = loaded || (retained ? { pts: previous.history, fetched: previous.fetched, source: previous.source } : null);
+      return { pts, history: past?.pts || [], historyError: !past, historyStale: !!retained, bounds, product: prod, region, view, fetched: past?.fetched || new Date(), currentFetched: savedNow.length ? new Date(saved.built) : current.length ? previous?.currentFetched || previous?.fetched : new Date(), source: past?.source };
+    }
+    try {
+      const pts = await octopusRates(prod, region, from, end);
+      if (!pts.length) throw new Error("empty");
+      return { pts, history: [], bounds, product: prod, region, view, fetched: new Date(), currentFetched: new Date() };
+    } catch (e) {
+      if (!savedNow.length) throw e;
+      return { pts: savedNow, history: [], bounds, product: prod, region, view, fetched: new Date(saved.built), currentFetched: new Date(saved.built), savedFallback: true };
+    }
   }
   const trackerName = code => {
     const match = /^SILVER-(\d{2})-(\d{2})-(\d{2})$/.exec(code);
@@ -1952,7 +1978,7 @@ footer a { color: var(--accent); }
     $("agResolution").textContent = days === 30 ? "Agile daily average" : days === 7 ? "Agile hourly average" : "Agile half-hourly rate";
     $("agBandKey").hidden = !history;
     $("agTrackerKey").hidden = true;
-    setTag("tagAgileNow", !!a, REGIONS[S.region]);
+    setTag("tagAgileNow", !!a?.pts.some(p => p.t <= now && p.end > now), REGIONS[S.region]);
     setTag("tagAgile", !!a, a?.product);
     ["sMin", "sMax", "sAvg", "sMinT", "sMaxT", "sAvgT"].forEach(id => $(id).textContent = "—");
     $("agVsTr").textContent = "";
@@ -1969,7 +1995,7 @@ footer a { color: var(--accent); }
     $("agNextLbl").textContent = next ? `From ${hm(next.t)}` : "Next slot";
     $("sNow").textContent = cur ? pence(cur.v) : "—";
     $("sNowT").textContent = cur ? `${hm(cur.t)}–${hm(cur.end)}` : "—";
-    setFresh("agileNow", a.fetched, "data", 30);
+    setFresh("agileNow", a.currentFetched || a.fetched, "data", 60);
     if (history && (a.view !== S.agView || a.historyError)) {
       $("agNote").textContent = S.data.agilePending ? "Loading historical Agile prices…" : "Historical Agile prices couldn't be loaded. The current rate above is still available. Use Refresh to retry.";
       setTag("tagAgile", false); setFresh("agile", null); emptyChart("cAgile"); renderWindows(); return;
@@ -2009,6 +2035,8 @@ footer a { color: var(--accent); }
       ? `${days === 7 ? "Hourly" : "Daily"} averages across the last ${days} complete UK calendar days, excluding today. The shaded band keeps half-hourly lows and highs. Curves guide the eye between averages.${missing ? ` ${missing} incomplete ${days === 7 ? "hours" : "days"} are left as gaps.` : ""} Hover or touch for values. Rates include VAT; standing charges excluded.`
       : `Published half-hourly rates, joined by a smooth guide line. Hover or touch for the actual rate. ${S.agView === "ahead" && raw.length < 48 ? `${raw.length} of the next 48 half-hours are published so far. ` : ""}Tomorrow appears when Octopus publishes it. Green dots mark the cheapest available window. Rates include VAT; standing charges excluded.`;
     if (S.data.agileError) $("agNote").textContent += " Refresh failed; showing the last successfully loaded prices.";
+    if (a.savedFallback) $("agNote").textContent += " Using the site's saved published rates while the live price service is unavailable.";
+    if (a.historyStale) $("agNote").textContent += " Update unavailable; showing the last successfully loaded history.";
     setFresh("agile", a.fetched, "data", 30);
     const best = history ? null : bestWindow(a.pts, +$("dur").value, now);
     const inBest = p => best && p.t >= best.start && p.t < best.end;
@@ -2460,7 +2488,7 @@ footer a { color: var(--accent); }
     try {
       const result = await loadAgile(region, view);
       if (request !== priceRequests.agile || region !== S.region || view !== S.agView) return;
-      S.data.agile = result; S.live.agile = !result.historyError;
+      S.data.agile = result; S.live.agile = !result.historyError && !result.historyStale;
     } catch (e) {
       if (request !== priceRequests.agile || region !== S.region || view !== S.agView) return;
       S.live.agile = false; S.data.agileError = true;

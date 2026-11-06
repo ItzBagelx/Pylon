@@ -8,6 +8,7 @@
 //                    battery units and their physical notifications
 import fs from "node:fs/promises";
 import path from "node:path";
+import { buildAgilePrices } from "./build-agile.mjs";
 
 const E = "https://data.elexon.co.uk/bmrs/api/v1";
 const NESO = "https://api.neso.energy/api/3/action";
@@ -323,6 +324,9 @@ async function step(name, fn) {
   catch (e) { meta.ok[name] = false; meta.errors[name] = String(e).slice(0, 300); log("FAILED", name, e); return null; }
 }
 
+// Save regional price history first so it is available even if a later grid-data source fails.
+await step("agilePrices", () => buildAgilePrices());
+
 // bump VERSION whenever the way days are built changes, so the whole history is rebuilt on the next run
 const VERSION = 2;
 let state = await readJSON("daily.json", null);
@@ -418,3 +422,4 @@ const [ef, du, wf] = await Promise.all([
 
 await write("meta.json", meta);
 log("done", JSON.stringify(meta.ok));
+
