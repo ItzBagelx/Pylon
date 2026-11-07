@@ -68,19 +68,32 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .wrap { max-width: 1180px; margin: 0 auto; }
 
-/* Top bar */
+/* Compact, non-sticky navigation. Infrequent controls live in one menu. */
 .top { position: relative; z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
-.top .wrap { display: flex; align-items: center; gap: 12px; padding-block: 10px; flex-wrap: wrap; }
-.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-.brand svg { width: 26px; height: 30px; color: var(--ink); flex-shrink: 0; }
-.brand b { font-family: var(--display); font-variation-settings: "wdth" 125; font-weight: 900; font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
-.brand small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; line-height: 1.1; }
-.chip { display: inline-flex; align-items: center; gap: 7px; font: 600 11px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
-.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-.chip.live i { background: var(--good); box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+.top .wrap { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: 18px; padding-block: 8px; }
+.brand { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.brand svg { width: 22px; height: 28px; color: var(--ink); flex-shrink: 0; }
+.brand b { font-family: var(--display); font-variation-settings: "wdth" 125; font-weight: 900; font-size: 19px; letter-spacing: .02em; text-transform: uppercase; }
+.chip { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; gap: 7px; font: 600 10px/1 var(--mono); letter-spacing: .02em; color: var(--muted); white-space: nowrap; }
+.chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.chip.live i { background: var(--good); }
 .chip.live { color: var(--ink); }
 .chip.example i { background: var(--warn); }
-.controls { display: flex; gap: 8px; align-items: center; }
+.header-settings { grid-column: 4; grid-row: 1; position: relative; justify-self: end; min-width: 0; }
+.header-settings summary { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; list-style: none; font-size: 12px; }
+.header-settings summary::-webkit-details-marker { display: none; }
+.header-settings summary:hover, .header-settings[open] summary { background: var(--surface-2); }
+.header-settings summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.header-settings svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.settings-icon { width: 18px; height: 18px; }
+.settings-chevron { width: 12px; height: 12px; }
+#headerRegion { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-panel { position: absolute; right: 0; top: calc(100% + 8px); width: min(292px, calc(100vw - 48px)); display: flex; flex-direction: column; gap: 10px; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 35px #0003; }
+.settings-panel label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.settings-panel select { width: 100%; max-width: none; min-height: 44px; }
+.settings-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.settings-actions .btn { min-height: 44px; font-size: 12px; padding-inline: 8px; }
+#arrangeCharts[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 select, button { font: 500 13px/1 var(--body); color: var(--ink); }
 select { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; max-width: 190px; }
 .btn { background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
@@ -287,17 +300,14 @@ footer a { color: var(--accent); }
 
 /* Section tabs and personal chart layout */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.dashboard-nav { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin-bottom: -20px; }
-.dashboard-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); padding: 0 0 6px; scroll-padding-inline: 8px; }
+.dashboard-nav { grid-column: 2; grid-row: 1; min-width: 0; }
+.dashboard-tabs { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: 8px; }
 .dashboard-tabs::-webkit-scrollbar { display: none; }
-.dashboard-tabs > button { flex: 0 0 auto; min-height: 44px; border: 0; border-radius: 8px; padding: 10px 17px; background: transparent; color: var(--muted); font-weight: 700; cursor: pointer; white-space: nowrap; }
-.dashboard-tabs > button[aria-selected="true"] { color: var(--surface); background: var(--ink); }
-.dashboard-tabs > button:hover { box-shadow: inset 0 0 0 1px var(--line); }
+.dashboard-tabs > button { flex: 0 0 auto; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 0 12px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.dashboard-tabs > button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.dashboard-tabs > button:hover { color: var(--ink); background: var(--surface-2); }
+.dashboard-tabs > button:focus-visible { outline-offset: -3px; }
 #pinCount { font: 600 10px/1 var(--mono); margin-left: 4px; opacity: .75; }
-.layout-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.tab-hint { color: var(--muted); font-size: 12px; }
-.layout-toolbar .btn { min-height: 40px; font-size: 12px; }
-.layout-toolbar .btn[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 .tab-panel { display: flex; flex-direction: column; gap: 32px; min-width: 0; outline-offset: 6px; }
 .live-grid { align-items: start; }
 .pin-toggle { flex-shrink: 0; display: inline-grid; place-items: center; border: 0; background: transparent; color: var(--muted); width: 36px; height: 36px; padding: 8px; border-radius: 7px; cursor: pointer; }
@@ -322,27 +332,27 @@ footer a { color: var(--accent); }
 .empty-pins p { margin: 8px 0 18px; color: var(--muted); max-width: 48ch; }
 .empty-pins .btn { min-height: 44px; }
 @media (max-width: 760px) {
-  .top .wrap { gap: 8px; padding-block: 8px; }
-  .brand b { font-size: 18px; }
-  .brand small { font-size: 9px; }
-  .controls { width: 100%; }
-  .controls select { flex: 1; max-width: none; min-height: 40px; }
-  .controls .btn { min-height: 40px; }
   main .wrap { padding-top: 12px; gap: 28px; }
-  .dashboard-nav { margin-bottom: -8px; }
-  .dashboard-nav { display: grid; grid-template-columns: minmax(0, 1fr) 44px; gap: 8px; align-items: center; }
-  .tab-hint { display: none; }
-  #arrangeCharts { width: 44px; min-height: 44px; padding: 0; font-size: 0; }
-  #arrangeCharts::before { content: "⇅"; font: 600 21px/1 var(--body); }
-  #arrangeCharts[aria-pressed="true"]::before { content: "✓"; }
-  .dashboard-tabs { margin-inline: -6px; padding-inline: 6px; }
-  .dashboard-tabs > button { padding-inline: 15px; }
   .pin-toggle { width: 44px; height: 44px; margin-block: -4px; }
   .sec-head { align-items: flex-start; }
   .sec-head > .tools, .sec-head > .seg { width: 100%; }
   .sec-head .seg { max-width: 100%; }
   .seg button { min-height: 40px; padding-inline: 10px; }
   .hd-r { gap: 6px; width: 100%; justify-content: flex-start; margin-left: 0; }
+}
+@media (max-width: 1079px) {
+  .top .wrap { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; padding-block: 4px 0; }
+  .chip { grid-column: 2; justify-self: end; }
+  .header-settings { grid-column: 3; }
+  .dashboard-nav { grid-column: 1 / -1; grid-row: 2; }
+  .dashboard-tabs { margin-inline: -8px; }
+}
+@media (max-width: 600px) {
+  .brand b { font-size: 18px; }
+  .brand svg { width: 20px; height: 26px; }
+  .header-settings summary { width: 44px; padding: 0; border-color: transparent; }
+  #headerRegion, .settings-chevron { display: none; }
+  .dashboard-tabs > button { padding-inline: 12px; }
 }
 </style>
 </head>
@@ -351,21 +361,26 @@ footer a { color: var(--accent); }
 
 <header class="top gutter">
   <div class="wrap">
-    <div class="brand">
+    <div class="brand" aria-label="Pylon UK Grid">
       <svg viewBox="0 0 26 30" aria-hidden="true"><path d="M13 1 L5 29 M13 1 L21 29 M3 8 H23 M5 14 H21 M8 8 L18 14 M18 8 L8 14 M7 21 H19 M7 21 L17 29 M19 21 L9 29" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <div><b>Pylon</b><small>Great Britain grid, live</small></div>
+      <b>Pylon</b>
     </div>
-    <span class="chip" id="status"><i></i><span id="statusText">Connecting</span></span>
-    <div class="controls">
-      <label for="region" class="sr" hidden>Octopus electricity region</label>
-      <select id="region" aria-label="Octopus electricity region"></select>
-      <button class="btn" id="refresh" type="button">Refresh</button>
-    </div>
-  </div>
-</header>
-
-<main class="gutter">
-  <div class="wrap">
+    <span class="chip" id="status"><i aria-hidden="true"></i><span id="statusText">Connecting</span></span>
+    <details class="header-settings" id="headerSettings">
+      <summary aria-label="Region and chart settings" title="Region and chart settings">
+        <svg class="settings-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M9 4v6M15 14v6"/></svg>
+        <span id="headerRegion">London</span>
+        <svg class="settings-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+      </summary>
+      <div class="settings-panel">
+        <label for="region">Electricity region</label>
+        <select id="region" aria-label="Octopus electricity region"></select>
+        <div class="settings-actions">
+          <button class="btn" id="refresh" type="button">Refresh data</button>
+          <button class="btn" type="button" id="arrangeCharts" title="Arrange charts" aria-label="Arrange charts" aria-pressed="false">Arrange charts</button>
+        </div>
+      </div>
+    </details>
     <div class="dashboard-nav" id="dashboardNav" hidden>
       <div class="dashboard-tabs" role="tablist" aria-label="Dashboard sections">
         <button type="button" role="tab" id="tab-live" data-tab="live">Live</button>
@@ -377,11 +392,12 @@ footer a { color: var(--accent); }
         <button type="button" role="tab" id="tab-records" data-tab="records">Records</button>
         <button type="button" role="tab" id="tab-pinned" data-tab="pinned">Pinned <span id="pinCount">0</span></button>
       </div>
-      <div class="layout-toolbar">
-        <span class="tab-hint">Swipe between sections</span>
-        <button class="btn" type="button" id="arrangeCharts" title="Arrange charts" aria-label="Arrange charts" aria-pressed="false">Arrange charts</button>
-      </div>
     </div>
+  </div>
+</header>
+
+<main class="gutter">
+  <div class="wrap">
     <div class="layout-status sr-only" id="layoutStatus" role="status" aria-live="polite"></div>
 
     <!-- RIGHT NOW -->
@@ -608,7 +624,7 @@ footer a { color: var(--accent); }
     <section class="sec" aria-labelledby="h-price">
       <div class="sec-head">
         <h2 id="h-price">Prices</h2>
-        <p id="regionLabel">Octopus Agile and Tracker, London region. Change region at the top of the page.</p>
+        <p id="regionLabel">Octopus Agile and Tracker · London. Change region in settings.</p>
       </div>
       <div class="grid">
         <div class="card s12" data-info="agile" data-fresh="agile">
@@ -2483,11 +2499,12 @@ footer a { color: var(--accent); }
     const v = Object.values(S.live);
     const ok = v.filter(Boolean).length;
     const chip = $("status");
+    chip.title = `Data feeds checked at ${hm(new Date())}: ${ok} of ${v.length} available`;
     chip.classList.remove("live", "example");
     if (!v.length) { $("statusText").textContent = "Connecting"; return; }
-    if (ok === v.length) { chip.classList.add("live"); $("statusText").textContent = "Live · " + hm(new Date()); }
-    else if (ok === 0) { chip.classList.add("example"); $("statusText").textContent = "Offline · retrying"; }
-    else { chip.classList.add("live"); $("statusText").textContent = "Partly live · " + hm(new Date()); }
+    if (ok === v.length) { chip.classList.add("live"); $("statusText").textContent = "Live"; }
+    else if (ok === 0) { chip.classList.add("example"); $("statusText").textContent = "Offline"; }
+    else { chip.classList.add("live"); $("statusText").textContent = "Partial"; }
   }
   // Runs a loader; on failure keeps the last good data so a brief outage doesn't blank the page
   async function run(key, loader, render) {
@@ -2645,7 +2662,10 @@ footer a { color: var(--accent); }
   const sel = $("region");
   sel.innerHTML = Object.entries(REGIONS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
   sel.value = S.region;
-  const setRegionLabel = () => $("regionLabel").textContent = `Octopus Agile and Tracker, ${REGIONS[S.region]} region. Change region at the top of the page.`;
+  const setRegionLabel = () => {
+    $("regionLabel").textContent = `Octopus Agile and Tracker · ${REGIONS[S.region]}. Change region in settings.`;
+    $("headerRegion").textContent = REGIONS[S.region];
+  };
   setRegionLabel();
   sel.addEventListener("change", () => {
     S.region = sel.value; setRegionLabel(); S.data.agile = null; S.data.tracker = null;

@@ -38,13 +38,23 @@ export function initDashboard(doc = document, win = window) {
   const nav = doc.getElementById("dashboardNav");
   if (!nav || nav.dataset.ready) return;
   nav.dataset.ready = "true";
-  const root = nav.parentElement, footer = root.querySelector("footer");
+  const root = doc.querySelector("main > .wrap"), footer = root.querySelector("footer");
   const tabs = [...nav.querySelectorAll("[data-tab]")], panels = new Map(), cards = new Map(), groups = {}, homes = {};
   const clones = new Map();
   let active = "live", arranging = false, touch = null, storageFailed = false;
   const status = doc.getElementById("layoutStatus");
   const announce = message => { status.textContent = message; };
   const notifyLayout = () => win.dispatchEvent(new win.Event("pylon:layout"));
+  const settings = doc.getElementById("headerSettings"), settingsButton = settings?.querySelector("summary");
+  function closeSettings(focus = false) {
+    if (!settings?.open) return;
+    settings.open = false;
+    if (focus) settingsButton.focus({ preventScroll: true });
+  }
+  doc.addEventListener("click", event => { if (settings && !settings.contains(event.target)) closeSettings(); });
+  doc.addEventListener("keydown", event => { if (event.key === "Escape" && settings?.open) { closeSettings(true); event.preventDefault(); } });
+  doc.getElementById("region")?.addEventListener("change", () => closeSettings(true));
+  doc.getElementById("refresh")?.addEventListener("click", () => closeSettings(true));
 
   for (const tab of TABS) {
     const panel = doc.createElement("div");
@@ -182,6 +192,7 @@ export function initDashboard(doc = document, win = window) {
   }
   function selectTab(id, { focus = false, scroll = false, history = true } = {}) {
     if (!panels.has(id)) return;
+    closeSettings();
     active = id;
     for (const button of tabs) {
       const selected = button.dataset.tab === id;
@@ -219,6 +230,8 @@ export function initDashboard(doc = document, win = window) {
     event.currentTarget.setAttribute("aria-label", event.currentTarget.textContent);
     event.currentTarget.title = event.currentTarget.textContent;
     announce(arranging ? "Use Earlier and Later beside a chart to change its order." : storageFailed ? "Chart order kept for this visit." : "Chart order saved on this device.");
+    closeSettings();
+    panels.get(active).focus({ preventScroll: true });
     notifyLayout();
   });
   doc.getElementById("browseCharts").addEventListener("click", () => selectTab("live", { focus: true, scroll: true }));
