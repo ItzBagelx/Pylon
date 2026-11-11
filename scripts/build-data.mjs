@@ -336,13 +336,14 @@ async function step(name, fn) {
 // Save regional price history first so it is available even if a later grid-data source fails.
 await step("agilePrices", () => buildAgilePrices());
 
+// Start the larger generation download in parallel without holding up the outlook.
+const generationTask = step("generationOutturn", () => get(`${E}/datasets/FUELHH/stream?settlementDateFrom=${sday(now - 8 * DAY)}&settlementDateTo=${sday(now)}`, { timeout: 60000, tries: 2 }).then(rows));
 // Keep the outlook independent of slower historic-grid and battery rebuilds.
-const [ef, du, wf, wa, generationActual] = await Promise.all([
+const [ef, du, wf, wa] = await Promise.all([
   step("embeddedForecast", embeddedForecast),
   step("demandUpdate", demandUpdate),
   step("windForecast", windForecast),
-  step("windOutturn", windOutturn),
-  step("generationOutturn", () => get(`${E}/datasets/FUELHH/stream?settlementDateFrom=${sday(now - 8 * DAY)}&settlementDateTo=${sday(now)}`, { timeout: 60000, tries: 2 }).then(rows))
+  step("windOutturn", windOutturn)
 ]);
 {
   // embedded wind and solar for the live views: NESO's outturn estimate where it exists, then its forecast
@@ -361,6 +362,7 @@ const [ef, du, wf, wa, generationActual] = await Promise.all([
 
 // Save current generation before the older, independent historic-grid rebuild.
 await step("generation", async () => {
+  const generationActual = await generationTask;
   if (!generationActual || !du) throw new Error("Generation source unavailable");
   await write("generation.json", snapshotFromElexon(generationActual, du, now));
 });

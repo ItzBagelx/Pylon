@@ -908,14 +908,14 @@ footer a { color: var(--accent); }
 
   // fetch with a short-lived cache so panels sharing a window don't download it twice
   const CACHE = new Map();
-  function getJSON(url, ms = 20000) {
+  function getJSON(url, ms = 20000, fetchOptions = {}) {
     const hit = CACHE.get(url);
     if (hit && Date.now() - hit.at < 240000) return hit.p;
     const p = (async () => {
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), ms);
       try {
-        const r = await fetch(url, { signal: ctl.signal });
+        const r = await fetch(url, { ...fetchOptions, signal: ctl.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
         return await r.json();
       } finally { clearTimeout(t); }
@@ -2379,7 +2379,7 @@ footer a { color: var(--accent); }
     const selected = S.fcRange ? allPoints.filter(p => +p.t >= cut && +p.t < cut + S.fcRange * 36e5) : allPoints;
     const points = selected.length ? selected : [{ t: new Date(cut), wind: null, solar: null, flags: 3 }];
     const future = points.filter(p => +p.t >= cut && p.wind != null && p.solar != null);
-    const delayed = !Number.isFinite(Date.parse(F.built)) || now - Date.parse(F.built) > 90 * 60000;
+    const delayed = !!S.data.fcRefreshError || !Number.isFinite(Date.parse(F.built)) || now - Date.parse(F.built) > 90 * 60000;
     S.live.fc = !!future.length && !delayed;
     setTag("tagFc", !!future.length, "Forecast"); setTag("tagFcS", !!future.length, "Forecast");
     if (delayed && future.length) for (const id of ["tagFc", "tagFcS"]) { $(id).textContent = "Delayed"; $(id).classList.add("ex"); }
@@ -2612,7 +2612,24 @@ footer a { color: var(--accent); }
   });
   const refreshMid = () => run("mid", () => loadMid(S.midRange), renderMid);
   const refreshBat = () => run("bat", () => repo("battery").then(B => { if (!B.hh || !B.hh.length) throw new Error("empty"); return B; }), renderBattery);
-  const refreshFc = () => run("fc", () => repo("forecast"), renderForecast);
+  let forecastRequest = 0;
+  async function refreshFc() {
+    const request = ++forecastRequest;
+    try {
+      // A returning tab and manual Refresh must bypass the browser's static-file cache.
+      const F = await getJSON(`data/forecast.json?v=${Math.floor(Date.now() / 3e5)}`, 20000, { cache: "no-store" });
+      if (request !== forecastRequest) return;
+      const built = Date.parse(F?.built), previous = Date.parse(S.data.fc?.built);
+      if (!Number.isFinite(built) || !Array.isArray(F.past) || !Array.isArray(F.fut) ||
+          !F.fut.some(row => Array.isArray(row) && row.slice(0, 4).length === 4 && row.slice(0, 4).every(Number.isFinite))) throw new Error("Invalid outlook snapshot");
+      if (Number.isFinite(previous) && built < previous) throw new Error("Older outlook received; retaining newer snapshot");
+      S.data.fc = F; S.data.fcRefreshError = false;
+    } catch {
+      if (request !== forecastRequest) return;
+      S.data.fcRefreshError = true;
+    }
+    renderForecast(); updateStatus();
+  }
   const refreshRec = () => run("rec", () => repo("records"), renderRecords);
   const refreshYoY = () => run("yoy", () => loadYoY(S.yoyRange), renderYoY);
 
