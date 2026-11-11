@@ -559,21 +559,21 @@ footer a { color: var(--accent); }
             <button type="button" data-range="8760" aria-pressed="false">Last year</button>
           </div>
           <div class="seg" role="group" aria-label="Generation display">
-            <button type="button" data-unit="total" aria-pressed="true">Total GW</button>
-            <button type="button" data-unit="gw" aria-pressed="false">By source</button>
+            <button type="button" data-unit="total" aria-pressed="false">Total GW</button>
+            <button type="button" data-unit="gw" aria-pressed="true">By source</button>
           </div>
         </div>
       </div>
       <div class="grid">
         <div class="card s8" data-info="history" data-fresh="hist">
-          <div class="card-head"><h3 id="histTitle">GB generation, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
+          <div class="card-head"><h3 id="histTitle">GB generation by source, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
           <div class="stats generation-stats">
             <div class="stat"><span>Period average</span><b id="genAvg">—</b></div>
             <div class="stat"><span id="genPeakLabel">Highest half-hour</span><b id="genPeak">—</b></div>
             <div class="stat"><span>Energy in view</span><b id="genEnergy">—</b></div>
             <div class="stat"><span>Data coverage</span><b id="genCoverage">—</b></div>
           </div>
-          <div class="chart generation-chart"><canvas id="cHist" role="img" aria-label="GB generation over time"></canvas></div>
+          <div class="chart generation-chart"><canvas id="cHist" role="img" aria-label="GB generation by source over time"></canvas></div>
           <p class="note" id="histNote">Half-hourly GB generation, including solar and small wind farms. Imports excluded.</p>
         </div>
         <div class="card s4" data-info="summary" data-fresh="hist">
@@ -835,7 +835,7 @@ footer a { color: var(--accent); }
   };
 
   const $ = id => document.getElementById(id);
-  const S = { fcRange: 0, batRange: 24, recPeriod: "month", agView: "ahead", trView: "week", trProduct: "", pieRange: 0, range: 24, yoyRange: 8760, unit: "total", demRange: 168, midRange: 168, region: "C", live: {}, data: {}, charts: {} };
+  const S = { fcRange: 0, batRange: 24, recPeriod: "month", agView: "ahead", trView: "week", trProduct: "", pieRange: 0, range: 24, yoyRange: 8760, unit: "gw", demRange: 168, midRange: 168, region: "C", live: {}, data: {}, charts: {} };
   try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
 
   /* ---------- helpers ---------- */
