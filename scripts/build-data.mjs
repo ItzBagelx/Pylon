@@ -10,6 +10,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { buildAgilePrices } from "./build-agile.mjs";
 import { assembleOutlook } from "./build-outlook.mjs";
+import { snapshotFromElexon, mergeGenerationDays } from "./generation-series.mjs";
 
 const E = "https://data.elexon.co.uk/bmrs/api/v1";
 const NESO = "https://api.neso.energy/api/3/action";
@@ -336,11 +337,12 @@ async function step(name, fn) {
 await step("agilePrices", () => buildAgilePrices());
 
 // Keep the outlook independent of slower historic-grid and battery rebuilds.
-const [ef, du, wf, wa] = await Promise.all([
+const [ef, du, wf, wa, generationActual] = await Promise.all([
   step("embeddedForecast", embeddedForecast),
   step("demandUpdate", demandUpdate),
   step("windForecast", windForecast),
-  step("windOutturn", windOutturn)
+  step("windOutturn", windOutturn),
+  step("generationOutturn", () => get(`${E}/datasets/FUELHH/stream?settlementDateFrom=${sday(now - 8 * DAY)}&settlementDateTo=${sday(now)}`, { timeout: 60000, tries: 2 }).then(rows))
 ]);
 {
   // embedded wind and solar for the live views: NESO's outturn estimate where it exists, then its forecast
@@ -356,6 +358,12 @@ const [ef, du, wf, wa] = await Promise.all([
   })));
 }
 
+
+// Save current generation before the older, independent historic-grid rebuild.
+await step("generation", async () => {
+  if (!generationActual || !du) throw new Error("Generation source unavailable");
+  await write("generation.json", snapshotFromElexon(generationActual, du, now));
+});
 
 // bump VERSION whenever the way days are built changes, so the whole history is rebuilt on the next run
 const VERSION = 2;
@@ -407,6 +415,7 @@ meta.shift = state.shift;
 await write("daily.json", state);
 
 if (daysArr.length) {
+  await write("generation-days.json", mergeGenerationDays(daysArr, await readJSON("generation.json", null), now));
   // compact daily file for the 30-day views (last 400 days covers this month and the same month a year ago)
   const lite = x => ({ d: x.d, n: x.n, mw: x.mw, ci: x.ci, dem: x.dem, mid: x.mid, cib: x.cib, bat: x.bat ? [x.bat.dis, x.bat.chg] : null });
   await write("days.json", { built: meta.built, days: daysArr.slice(-400).map(lite) });
@@ -427,5 +436,6 @@ if (bat) {
 
 await write("meta.json", meta);
 log("done", JSON.stringify(meta.ok));
+
 
 

@@ -301,14 +301,14 @@ footer a { color: var(--accent); }
 /* Section tabs and personal chart layout */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .dashboard-nav { grid-column: 2; grid-row: 1; min-width: 0; }
-.dashboard-tabs { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: 8px; }
-.dashboard-tabs::-webkit-scrollbar { display: none; }
-.dashboard-tabs > button { flex: 0 0 auto; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 0 12px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
-.dashboard-tabs > button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-.dashboard-tabs > button:hover { color: var(--ink); background: var(--surface-2); }
-.dashboard-tabs > button:focus-visible { outline-offset: -3px; }
+.section-links { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: 8px; }
+.section-links::-webkit-scrollbar { display: none; }
+.section-links > a { display: inline-flex; align-items: center; text-decoration: none; flex: 0 0 auto; min-height: 44px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 0 12px; background: transparent; color: var(--muted); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.section-links > a[aria-current="location"] { color: var(--accent); border-bottom-color: var(--accent); }
+.section-links > a:hover { color: var(--ink); background: var(--surface-2); }
+.section-links > a:focus-visible { outline-offset: -3px; }
 #pinCount { font: 600 10px/1 var(--mono); margin-left: 4px; opacity: .75; }
-.tab-panel { display: flex; flex-direction: column; gap: 32px; min-width: 0; outline-offset: 6px; }
+.page-section { scroll-margin-top: 16px; display: flex; flex-direction: column; gap: 32px; min-width: 0; outline-offset: 6px; }
 .live-grid { align-items: start; }
 .pin-toggle { flex-shrink: 0; display: inline-grid; place-items: center; border: 0; background: transparent; color: var(--muted); width: 36px; height: 36px; padding: 8px; border-radius: 7px; cursor: pointer; }
 .pin-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -345,15 +345,19 @@ footer a { color: var(--accent); }
   .chip { grid-column: 2; justify-self: end; }
   .header-settings { grid-column: 3; }
   .dashboard-nav { grid-column: 1 / -1; grid-row: 2; }
-  .dashboard-tabs { margin-inline: -8px; }
+  .section-links { margin-inline: -8px; }
 }
 @media (max-width: 600px) {
   .brand b { font-size: 18px; }
   .brand svg { width: 20px; height: 26px; }
   .header-settings summary { width: 44px; padding: 0; border-color: transparent; }
   #headerRegion, .settings-chevron { display: none; }
-  .dashboard-tabs > button { padding-inline: 12px; }
+  .section-links > a { padding-inline: 12px; }
 }
+.pin-placeholder { grid-column: span 12; margin: 0; padding: 12px 16px; border: 1px dashed var(--line); border-radius: var(--r); font-size: 13px; }
+.pin-placeholder a { color: var(--accent); }
+.generation-chart { height: 320px; }
+@media (max-width: 620px) { .generation-chart { height: 270px; } .seg[aria-label="Generation time range"] { width: 100%; flex-wrap: nowrap; } .seg[aria-label="Generation time range"] button { flex: 1; min-width: 0; padding-inline: 8px; font-size: 12px; white-space: nowrap; } }
 </style>
 </head>
 <body>
@@ -382,16 +386,17 @@ footer a { color: var(--accent); }
       </div>
     </details>
     <div class="dashboard-nav" id="dashboardNav" hidden>
-      <div class="dashboard-tabs" role="tablist" aria-label="Dashboard sections">
-        <button type="button" role="tab" id="tab-live" data-tab="live">Live</button>
-        <button type="button" role="tab" id="tab-prices" data-tab="prices">Prices</button>
-        <button type="button" role="tab" id="tab-outlook" data-tab="outlook">Outlook</button>
-        <button type="button" role="tab" id="tab-batteries" data-tab="batteries">Batteries</button>
-        <button type="button" role="tab" id="tab-history" data-tab="history">History</button>
-        <button type="button" role="tab" id="tab-capacity" data-tab="capacity">Capacity</button>
-        <button type="button" role="tab" id="tab-records" data-tab="records">Records</button>
-        <button type="button" role="tab" id="tab-pinned" data-tab="pinned">Pinned <span id="pinCount">0</span></button>
-      </div>
+      <nav class="section-links" aria-label="Dashboard sections">
+        <a href="#live" data-section="live">Live</a>
+        <a href="#generation" data-section="generation">Generation</a>
+        <a href="#prices" data-section="prices">Prices</a>
+        <a href="#outlook" data-section="outlook">Outlook</a>
+        <a href="#batteries" data-section="batteries">Batteries</a>
+        <a href="#demand" data-section="demand">Demand</a>
+        <a href="#capacity" data-section="capacity">Capacity</a>
+        <a href="#records" data-section="records">Records</a>
+        <a href="#pinned" data-section="pinned">Pinned <span id="pinCount">0</span></a>
+      </nav>
     </div>
   </div>
 </header>
@@ -545,26 +550,31 @@ footer a { color: var(--accent); }
     <!-- HISTORY -->
     <section class="sec" aria-labelledby="h-hist">
       <div class="sec-head">
-        <h2 id="h-hist">Where it came from</h2>
+        <h2 id="h-hist">Generation over time</h2>
         <div class="tools">
-          <div class="seg" role="group" aria-label="Time range">
+          <div class="seg" role="group" aria-label="Generation time range">
             <button type="button" data-range="24" aria-pressed="true">24 h</button>
-            <button type="button" data-range="72" aria-pressed="false">3 days</button>
             <button type="button" data-range="168" aria-pressed="false">7 days</button>
             <button type="button" data-range="720" aria-pressed="false">30 days</button>
-            <button type="button" data-range="8760" aria-pressed="false">1 year</button>
+            <button type="button" data-range="8760" aria-pressed="false">Last year</button>
           </div>
-          <div class="seg" role="group" aria-label="Units">
-            <button type="button" data-unit="pct" aria-pressed="true">Share %</button>
-            <button type="button" data-unit="gw" aria-pressed="false">Output GW</button>
+          <div class="seg" role="group" aria-label="Generation display">
+            <button type="button" data-unit="total" aria-pressed="true">Total GW</button>
+            <button type="button" data-unit="gw" aria-pressed="false">By source</button>
           </div>
         </div>
       </div>
       <div class="grid">
         <div class="card s8" data-info="history" data-fresh="hist">
-          <div class="card-head"><h3 id="histTitle">Generation share, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
-          <div class="chart"><canvas id="cHist" aria-label="Generation mix over time"></canvas></div>
-          <p class="note" id="histNote">Half-hourly generation shares from NESO, including embedded solar and wind.</p>
+          <div class="card-head"><h3 id="histTitle">GB generation, last 24 hours</h3><span class="tag" id="tagHist">—</span></div>
+          <div class="stats generation-stats">
+            <div class="stat"><span>Period average</span><b id="genAvg">—</b></div>
+            <div class="stat"><span id="genPeakLabel">Highest half-hour</span><b id="genPeak">—</b></div>
+            <div class="stat"><span>Energy in view</span><b id="genEnergy">—</b></div>
+            <div class="stat"><span>Data coverage</span><b id="genCoverage">—</b></div>
+          </div>
+          <div class="chart generation-chart"><canvas id="cHist" role="img" aria-label="GB generation over time"></canvas></div>
+          <p class="note" id="histNote">Half-hourly GB generation, including solar and small wind farms. Imports excluded.</p>
         </div>
         <div class="card s4" data-info="summary" data-fresh="hist">
           <div class="card-head"><h3>Period summary</h3><span class="tag" id="tagSum">—</span></div>
@@ -825,7 +835,7 @@ footer a { color: var(--accent); }
   };
 
   const $ = id => document.getElementById(id);
-  const S = { fcRange: 0, batRange: 24, recPeriod: "month", agView: "ahead", trView: "week", trProduct: "", pieRange: 0, range: 24, yoyRange: 8760, unit: "pct", demRange: 168, midRange: 168, region: "C", live: {}, data: {}, charts: {} };
+  const S = { fcRange: 0, batRange: 24, recPeriod: "month", agView: "ahead", trView: "week", trProduct: "", pieRange: 0, range: 24, yoyRange: 8760, unit: "total", demRange: 168, midRange: 168, region: "C", live: {}, data: {}, charts: {} };
   try { const r = localStorage.getItem("pylon-region"); if (r && REGIONS[r]) S.region = r; } catch (e) {}
 
   /* ---------- helpers ---------- */
@@ -926,8 +936,8 @@ footer a { color: var(--accent); }
     renewables: "<p>The split within renewable output only. The centre shows renewables as a share of everything GB used.</p><p>Biomass, mostly wood pellets burned at Drax, counts as renewable in official statistics, though how green it is is debated.</p>",
     byfuel: "<p>Live 5-minute output from power stations on the high-voltage transmission network, from Elexon.</p><p>Two NESO estimates fill the gaps: <b>solar</b> and <b>embedded wind</b> (small wind farms on local networks). Solar runs about two hours behind; embedded wind is NESO's estimate for this half-hour.</p><p>Imports are net of exports.</p>",
     ic: "<p>Undersea cables linking GB to France, Belgium, the Netherlands, Denmark, Norway and Ireland. Positive numbers flow into GB; negative numbers are exports.</p><p>Power flows towards whichever side is more expensive at the time.</p>",
-    history: "<p>How the mix changed over time. <b>Share %</b> is each source's share of what GB used. <b>Output GW</b> is the power actually produced, including NESO's estimates for solar and small wind farms.</p><p>Up to 7 days uses live half-hourly data. 30 days and 1 year use daily and weekly summaries rebuilt every hour, so they load instantly.</p>",
-    summary: "<p>The average mix over the whole period. Imports only count if GB imported more than it exported over the period as a whole.</p>",
+    history: "<p>GB generation in GW from Elexon and NESO, including solar and small-wind estimates. Imports and pumping demand are excluded. Dashed periods include forecast embedded output while reported estimates are pending.</p><p>24 hours shows half-hours; 7 days shows hourly means with the half-hourly range; 30 days shows daily means; the last year shows weekly means across 365 complete UK days. Hover or touch for readings and coverage. Gaps are not interpolated.</p>",
+    summary: "<p>The generation mix across the selected period, weighted by the number of reported half-hours. Solar and small wind farms are estimated. Imports are excluded.</p>",
     yoy: "<p><b>Last 12 months</b> compares the last 52 whole weeks (Monday to Sunday) with the 52 weeks before them. <b>Last 30 days</b> compares the last 30 whole days with the same 30 days 52 weeks earlier, so weekdays line up. The part-week or part-day so far is left out, so both sides are complete.</p><p><b>Made in GB</b> is home-grown generation as a share of what GB used, with imports counted net of exports; above 100% means GB was a net exporter.</p><p><b>pts</b> means percentage points: going from 30% to 33% is +3 pts. <b>Growth</b> compares average output in GW, so +10% means 10% more power than a year earlier.</p><p>Green means a move towards cleaner power; red means a move towards gas.</p>",
     demand: "<p><b>National demand</b> is the electricity drawn from the transmission network by homes and businesses. Rooftop solar and small wind farms reduce it, which is why it dips around midday on sunny days.</p><p>Long ranges show the average line with a shaded band from each period's lowest to highest half-hour. The dotted line is the same time a year earlier.</p>",
     demand_figs: "<p><b>Peak vs low</b> is the average gap between each day's busiest and quietest half-hour. The early-evening peak, around 5pm to 6pm, is the hardest time of day for the grid.</p>",
@@ -1241,23 +1251,10 @@ footer a { color: var(--accent); }
     return pts;
   }
 
+  const generationModule = import("./scripts/generation-series.mjs");
   async function loadHistory(hours) {
-    if (hours >= 720) {
-      const sm = await summary(hours).catch(() => null);
-      if (sm) {
-        const out = sm.cur.map(x => ({ t: noonOf(x.key), v: S.unit === "pct" ? sharesOf(x.mw) : gwOf(x.mw) }));
-        out.meta = { repo: true, ms: sm.ms, mw: combineMw(sm.cur), built: sm.built };
-        return out;
-      }
-      if (hours >= YEAR && S.unit !== "pct") throw new Error("year of GW needs the summary");
-    }
-    const now = new Date(), from = new Date(now - hours * 36e5);
-    if (S.unit !== "pct") return fuelhhPts(from, now);
-    const [pts, ic] = await Promise.all([ciGenRange(from, now), icFlows(from, now).catch(() => null)]);
-    const model = ic ? netModel(pts, ic) : null;
-    const out = model ? pts.map(p => ({ t: p.t, v: netPct(p.v, model.at(p.t)) })) : pts.slice();
-    out.meta = { model, gross: pts };
-    return out;
+    const gen = await generationModule;
+    return hours < 720 ? gen.recentSeries(await repo("generation"), hours) : gen.dailySeries(await repo("generation-days"), hours);
   }
 
   async function demandRange(from, to) {
@@ -1829,65 +1826,65 @@ footer a { color: var(--accent); }
   }
 
   function renderHistory() {
-    let pts = S.data.hist; const pct = S.unit === "pct";
-    const title = (pct ? "Generation share, " : "Output by source, ") + rangeTxt(S.range);
-    $("histTitle").textContent = title;
-    const rm = pts && pts.meta && pts.meta.repo;
-    $("histNote").textContent = rm
-      ? `${S.range >= YEAR ? "Weekly" : "Daily"} averages from NESO's historic generation mix, including small wind farms and solar, with imports counted net. ${pct ? "Tap or hover for the full breakdown." : ""}`
-      : pct
-        ? "Half-hourly generation shares from NESO, including embedded solar and wind, with imports counted net. Tap or hover for the full breakdown."
-        : "Half-hourly output from Elexon's meters, plus NESO's estimates for solar and small wind farms. Imports are net.";
-    setTag("tagHist", !!pts, rm ? "Summary" : "Live"); setTag("tagSum", !!pts, rm ? "Summary" : "Live");
-    if (!pts) { emptyChart("cHist"); setFresh("hist", null); return; }
-    if (rm) setFresh("hist", pts.meta.built, "summary", 120); else setFresh("hist", pts[pts.length - 1].t, "data", 90);
-    const ms = bucketFor(S.range);
-    const raw = pts;
-    pts = resample(raw, ms);
-    const unitTxt = pct ? "%" : " GW";
-    const fuels = ORDER.filter(f => pts.some(p => p.v[f] > 0.01));
-    const surf = css("--surface");
-    const datasets = fuels.map(f => ({
-      label: LABEL[f], data: pts.map(p => +(p.v[f] || 0).toFixed(2)),
-      backgroundColor: col(f) + "e0", borderColor: surf, borderWidth: 0.6, fill: true,
-      pointRadius: 0, pointHoverRadius: 3, pointHoverBackgroundColor: col(f), pointHoverBorderColor: surf, tension: 0.35, cubicInterpolationMode: "monotone", stack: "s"
-    }));
-    const opts = baseOpts();
-    opts.scales.y.stacked = true; opts.scales.y.beginAtZero = true;
-    if (pct) opts.scales.y.max = 100;
-    opts.scales.y.ticks.callback = v => v + unitTxt;
-    opts.scales.x.ticks.maxTicksLimit = S.range > 24 ? 7 : 9;
-    opts.plugins.legend = { display: true, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 14, font: { family: "Archivo", size: 12 } } };
-    opts.plugins.tooltip.callbacks = {
-      title: c => tipTime(pts[c[0].dataIndex].t, ms),
-      label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}${unitTxt}`,
-      footer: c => pct ? "" : `Total: ${c.reduce((a, x) => a + x.parsed.y, 0).toFixed(1)} GW`
-    };
-    opts.plugins.tooltip.filter = c => c.parsed.y >= 0.05;
-    opts.plugins.tooltip.itemSort = (a, b) => b.parsed.y - a.parsed.y;
-    opts.plugins.tooltip.footerColor = css("--ink");
-    if (S.range > 24 && ms < DAY) opts.plugins.dayRules = { times: pts.map(p => p.t) };
-    mount("cHist", { type: "line", data: { labels: timeLabels(pts, S.range), datasets }, options: opts });
-
-    // period averages on a net basis: imports only count if GB imported more than it exported over the period
-    const meta = raw.meta || {};
-    let avg, self = null;
-    if (meta.repo) { self = selfOf(meta.mw); avg = pct ? sharesOf(meta.mw) : gwOf(meta.mw); }
-    else if (pct && meta.model) { self = meta.model.self; avg = netPct(avgMix(meta.gross), self); }
-    else {
-      avg = {}; ORDER.forEach(f => avg[f] = raw.reduce((a, p) => a + (p.v[f] || 0), 0) / raw.length);
-      if (!pct) {
-        const net = raw.reduce((a, p) => a + (p.v._net || 0), 0) / raw.length;
-        const gen = ORDER.filter(f => f !== "imports").reduce((a, f) => a + avg[f], 0);
-        avg.imports = Math.max(0, net); self = gen / (gen + net);
-      }
+    const pts = S.data.hist, total = S.unit === "total";
+    $("histTitle").textContent = (total ? "GB generation, " : "GB generation by source, ") + rangeTxt(S.range);
+    const ms = pts?.meta.ms || (S.range === 24 ? HH : S.range === 168 ? 36e5 : S.range === 720 ? DAY : WEEK);
+    const resolution = ms === HH ? "Half-hourly output" : ms === 36e5 ? "Hourly averages" : ms === DAY ? "Daily averages" : "Weekly averages";
+    $("genPeakLabel").textContent = ms === HH ? "Highest half-hour" : ms === 36e5 ? "Highest hour" : ms === DAY ? "Highest day" : "Highest average";
+    for (const id of ["genAvg", "genPeak", "genEnergy", "genCoverage"]) $(id).textContent = "—";
+    setTag("tagHist", !!pts, resolution); setTag("tagSum", !!pts, "Period mix");
+    if (!pts) {
+      emptyChart("cHist"); emptyChart("dSum"); $("sumLegend").innerHTML = ""; setFresh("hist", null);
+      $("histNote").textContent = S.data.histPending ? "Loading generation history…" : "Generation history is temporarily unavailable. Use Refresh to try again.";
+      return;
     }
-    const keep = ORDER.filter(f => (avg[f] || 0) > 0.01);
-    const sum = keep.reduce((a, f) => a + avg[f], 0) || 1;
-    const sumItems = keep.sort((a, b) => avg[b] - avg[a]).map(f => ({ label: LABEL[f], value: avg[f] / sum * 100, color: col(f) }));
-    const renShare = RENEW.reduce((a, f) => a + (avg[f] || 0), 0) / sum * 100;
-    donut("dSum", sumItems, { big: Math.round(renShare) + "%", small: "renewable" }, v => p1(v) + "%");
-    legend("sumLegend", sumItems, v => p1(v) + "%");
+    setFresh("hist", S.range < 720 ? pts.meta.latest : pts.meta.built, S.range < 720 ? "data" : "summary", 120);
+    const valid = pts.filter(p => p.n), max = Math.max(...valid.map(p => p.total));
+    $("genAvg").textContent = p1(pts.meta.avgTotal) + " GW";
+    $("genPeak").textContent = p1(max) + " GW";
+    const energy = pts.meta.avgTotal * pts.meta.n / 2;
+    $("genEnergy").textContent = energy >= 10000 ? p1(energy / 1000) + " TWh" : Math.round(energy).toLocaleString("en-GB") + " GWh";
+    $("genCoverage").textContent = p1(pts.meta.coverage * 100) + "%";
+    $("histNote").textContent = resolution + (S.range >= 720 ? ` · last ${S.range === 720 ? 30 : 365} complete UK days` : "") + (S.range >= YEAR ? "; final point is the shorter remaining period" : "") + ". Imports excluded; gaps stay blank." + (pts.some(p => p.estimated) ? " Dashed: includes forecast small-wind/solar while outturn is pending." : " Includes estimated solar and small wind farms.");
+    $("cHist").setAttribute("aria-label", `${$("histTitle").textContent}. ${resolution}, in gigawatts. Imports excluded.`);
+    const opts = baseOpts(), accent = css("--accent"), surf = css("--surface");
+    opts.scales.y.beginAtZero = true; opts.scales.y.ticks.callback = v => v + " GW";
+    opts.scales.x.ticks.maxTicksLimit = matchMedia("(max-width: 620px)").matches ? 4 : 7;
+    const labels = pts.map(p => S.range === 24 ? hm(p.t) : S.range >= YEAR ? new Intl.DateTimeFormat("en-GB", { month: "short", year: "2-digit", timeZone: "Europe/London" }).format(p.t) : dateFmt.format(p.t));
+    const line = { pointRadius: 0, pointHoverRadius: 3, borderWidth: 2, tension: .25, cubicInterpolationMode: "monotone", spanGaps: false, segment: { borderDash: c => pts[c.p0DataIndex]?.estimated || pts[c.p1DataIndex]?.estimated ? [5, 4] : undefined } };
+    let datasets;
+    if (total) {
+      datasets = [];
+      if (S.range === 168) datasets.push(
+        { ...line, label: "Half-hourly low", data: pts.map(p => p.lo), borderWidth: 0, pointHoverRadius: 0, fill: false },
+        { ...line, label: "Half-hourly high", data: pts.map(p => p.hi), borderWidth: 0, pointHoverRadius: 0, backgroundColor: accent + "22", fill: "-1" }
+      );
+      datasets.push({ ...line, label: "GB generation", data: pts.map(p => p.total), borderColor: accent, backgroundColor: accent + "12", fill: "origin" });
+    } else {
+      opts.scales.y.stacked = true;
+      datasets = ORDER.filter(f => f !== "imports" && valid.some(p => (p.v[f] || 0) > .01)).map(f => ({ ...line, label: LABEL[f], data: pts.map(p => p.v ? p.v[f] : null), borderColor: surf, borderWidth: .5, backgroundColor: col(f) + "dd", fill: true, stack: "generation" }));
+    }
+    opts.plugins.legend = { display: !total, position: "bottom", labels: { color: css("--ink"), usePointStyle: true, pointStyle: "rectRounded", boxWidth: 9, boxHeight: 9, padding: 12, font: { family: "Archivo", size: 12 } } };
+    opts.plugins.tooltip.filter = c => !/^Half-hourly (low|high)$/.test(c.dataset.label) && c.parsed.y != null;
+    const fullDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+    opts.plugins.tooltip.callbacks = {
+      title: c => {
+        const p = pts[c[0].dataIndex];
+        if (ms < DAY) return `${dhm(p.t)}–${hm(new Date(p.end))} · ${ms === HH ? "half-hour" : "hourly average"}`;
+        return `${fullDate.format(p.t)}${ms > DAY ? "–" + fullDate.format(new Date(p.end - 1)) : ""} · ${ms === DAY ? "daily average" : Math.round((p.end - p.t) / DAY) + "-day average"}`;
+      },
+      label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)} GW`,
+      footer: c => {
+        const p = pts[c[0].dataIndex];
+        return [!total ? `GB total: ${p.total.toFixed(1)} GW` : S.range === 168 ? `Half-hours: ${p.lo.toFixed(1)}–${p.hi.toFixed(1)} GW` : "", p.n < p.expected ? `${p.n} of ${p.expected} half-hours available` : "", p.estimated ? "Includes forecast embedded wind/solar" : ""].filter(Boolean).join("\n");
+      }
+    };
+    mount("cHist", { type: "line", data: { labels, datasets }, options: opts });
+    const avg = pts.meta.avg, sum = Object.values(avg).reduce((a, v) => a + v, 0) || 1;
+    const items = ORDER.filter(f => f !== "imports" && avg[f] > .01).sort((a, b) => avg[b] - avg[a]).map(f => ({ label: LABEL[f], value: avg[f] / sum * 100, color: col(f) }));
+    const ren = RENEW.reduce((a, f) => a + (avg[f] || 0), 0) / sum * 100;
+    donut("dSum", items, { big: Math.round(ren) + "%", small: "renewable" }, v => p1(v) + "%");
+    legend("sumLegend", items, v => p1(v) + "%");
   }
 
   // Line chart with optional forecast, a high-low band for bucketed ranges, and last year's line for comparison
@@ -2544,7 +2541,17 @@ footer a { color: var(--accent); }
       return model ? { pct: netPct(gross, model.self), self: model.self, netGW: model.netGW, sampled: model.sampled, at: pts[pts.length - 1].t } : { pct: gross, gross: true, at: pts[pts.length - 1].t };
     }, renderPies);
   }
-  const refreshHistory = () => run("hist", () => loadHistory(S.range), renderHistory);
+  let historyRequest = 0;
+  async function refreshHistory() {
+    const request = ++historyRequest, hours = S.range;
+    S.data.hist = null; S.data.histPending = true; renderHistory();
+    try {
+      const result = await loadHistory(hours);
+      if (request !== historyRequest || hours !== S.range) return;
+      S.data.hist = result; S.live.hist = Date.now() - Date.parse(result.meta.built) < 2 * 36e5;
+    } catch { if (request !== historyRequest) return; S.data.hist = null; S.live.hist = false; }
+    S.data.histPending = false; renderHistory(); updateStatus();
+  }
   const refreshDemand = () => run("dem", () => loadDemand(S.demRange), renderDemand);
   const priceRequests = { agile: 0, tracker: 0 };
   async function refreshAgile() {
@@ -2652,7 +2659,7 @@ footer a { color: var(--accent); }
   seg("pie", "pieRange", refreshPies, () => { S.data.pieOk = false; });
   seg("range", "range", refreshHistory, () => { S.data.histOk = false; });
   seg("yoy", "yoyRange", refreshYoY, () => { S.data.yoyOk = false; });
-  seg("unit", "unit", refreshHistory, () => { S.data.histOk = false; });
+  seg("unit", "unit", renderHistory);
   seg("dem", "demRange", refreshDemand, () => { S.data.demOk = false; });
   seg("mid", "midRange", refreshMid, () => { S.data.midOk = false; });
   seg("bat", "batRange", renderBattery);

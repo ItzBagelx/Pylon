@@ -1,10 +1,11 @@
 // One copy of each chart: moving cards preserves canvas IDs, listeners and live data.
-export const TABS = [
+export const SECTIONS = [
   { id: "live", label: "Live", sections: ["h-now", "h-out"] },
+  { id: "generation", label: "Generation", sections: ["h-hist"] },
   { id: "prices", label: "Prices", sections: ["h-price"] },
   { id: "outlook", label: "Outlook", sections: ["h-fc"] },
   { id: "batteries", label: "Batteries", sections: ["h-bat"] },
-  { id: "history", label: "History", sections: ["h-hist", "h-dem"] },
+  { id: "demand", label: "Demand", sections: ["h-dem"] },
   { id: "capacity", label: "Capacity", sections: ["h-cap"] },
   { id: "records", label: "Records", sections: ["h-rec"] },
   { id: "pinned", label: "Pinned", sections: [] }
@@ -29,9 +30,11 @@ export function moveItem(list, id, direction) {
   return next;
 }
 
-export function swipeDirection(start, end) {
-  const dx = end.x - start.x, dy = end.y - start.y, elapsed = end.time - start.time;
-  return elapsed >= 0 && elapsed < 900 && Math.abs(dx) >= 70 && Math.abs(dx) > Math.abs(dy) * 1.6 ? (dx < 0 ? 1 : -1) : 0;
+export function sectionForHash(hash) {
+  let id;
+  try { id = decodeURIComponent(hash.replace(/^#/, "")); } catch { return "live"; }
+  if (id === "history") return "generation";
+  return SECTIONS.find(s => s.id === id || s.sections.includes(id))?.id || "live";
 }
 
 export function initDashboard(doc = document, win = window) {
@@ -39,9 +42,9 @@ export function initDashboard(doc = document, win = window) {
   if (!nav || nav.dataset.ready) return;
   nav.dataset.ready = "true";
   const root = doc.querySelector("main > .wrap"), footer = root.querySelector("footer");
-  const tabs = [...nav.querySelectorAll("[data-tab]")], panels = new Map(), cards = new Map(), groups = {}, homes = {};
+  const tabs = [...nav.querySelectorAll("[data-section]")], panels = new Map(), cards = new Map(), groups = {}, homes = {};
   const clones = new Map();
-  let active = "live", arranging = false, touch = null, storageFailed = false;
+  let active = "live", arranging = false, storageFailed = false;
   const status = doc.getElementById("layoutStatus");
   const announce = message => { status.textContent = message; };
   const notifyLayout = () => win.dispatchEvent(new win.Event("pylon:layout"));
@@ -56,11 +59,11 @@ export function initDashboard(doc = document, win = window) {
   doc.getElementById("region")?.addEventListener("change", () => closeSettings(true));
   doc.getElementById("refresh")?.addEventListener("click", () => closeSettings(true));
 
-  for (const tab of TABS) {
+  for (const tab of SECTIONS) {
     const panel = doc.createElement("div");
-    panel.className = "tab-panel"; panel.id = `panel-${tab.id}`;
-    panel.setAttribute("role", "tabpanel"); panel.setAttribute("aria-labelledby", `tab-${tab.id}`);
-    panel.tabIndex = 0; panel.hidden = true;
+    panel.className = "page-section"; panel.id = tab.id;
+    panel.setAttribute("role", "region"); panel.setAttribute("aria-labelledby", tab.sections[0] || "h-pinned");
+    panel.tabIndex = -1;
     for (const id of tab.sections) {
       const section = doc.getElementById(id)?.closest(".sec");
       if (!section) continue;
@@ -70,6 +73,7 @@ export function initDashboard(doc = document, win = window) {
         const key = card.dataset.info;
         if (cards.has(key)) return;
         const controls = card.querySelector(".seg") || key === "agile_now" ? [] : [...section.querySelectorAll(".sec-head .seg")];
+        card.id = `card-${key}`;
         cards.set(key, { card, get title() { return card.querySelector("h3").textContent.trim(); }, section: id, tab: tab.id, controls });
         groups[id].push(key);
       });
@@ -92,7 +96,7 @@ export function initDashboard(doc = document, win = window) {
   }
   function returnHome() {
     clones.clear();
-    for (const record of cards.values()) record.card.querySelector(".pin-context")?.remove();
+    for (const record of cards.values()) { record.card.querySelector(".pin-context")?.remove(); record.placeholder?.remove(); }
     for (const [group, order] of Object.entries(layout.order)) {
       for (const key of order) homes[group]?.append(cards.get(key).card);
     }
@@ -106,7 +110,7 @@ export function initDashboard(doc = document, win = window) {
   function makeContext(record) {
     const context = doc.createElement("div"); context.className = "pin-context";
     const origin = doc.createElement("button"); origin.type = "button"; origin.className = "pin-origin";
-    origin.textContent = `Open ${TABS.find(t => t.id === record.tab).label} →`;
+    origin.textContent = `Open ${SECTIONS.find(t => t.id === record.tab).label} →`;
     origin.addEventListener("click", () => selectTab(record.tab, { focus: true, scroll: true }));
     context.append(origin);
     if (record.controls.length) {
@@ -130,13 +134,16 @@ export function initDashboard(doc = document, win = window) {
   }
   function applyLayout() {
     returnHome();
-    if (active === "pinned") for (const key of layout.pins) {
+    for (const key of layout.pins) {
       const record = cards.get(key);
+      const placeholder = doc.createElement("p"); placeholder.className = "pin-placeholder";
+      const jump = doc.createElement("a"); jump.href = `#${record.card.id}`; jump.textContent = `${record.title} is in your pinned charts →`;
+      placeholder.append(jump); record.card.before(placeholder); record.placeholder = placeholder;
       const head = record.card.querySelector(".card-head");
       head.after(makeContext(record)); pinnedGrid.append(record.card);
     }
     for (const [key, record] of cards) {
-      const isPinned = layout.pins.includes(key), list = active === "pinned" ? layout.pins : layout.order[record.section];
+      const isPinned = layout.pins.includes(key), list = isPinned ? layout.pins : layout.order[record.section].filter(k => !layout.pins.includes(k));
       record.pin.setAttribute("aria-pressed", String(isPinned));
       record.pin.setAttribute("aria-label", `${isPinned ? "Unpin" : "Pin"} ${record.title}`);
       record.pin.title = isPinned ? "Remove from pinned charts" : "Add to pinned charts";
@@ -158,10 +165,7 @@ export function initDashboard(doc = document, win = window) {
       const index = layout.pins.indexOf(key);
       if (index < 0) layout.pins.push(key); else layout.pins.splice(index, 1);
       applyLayout(); announce(`${record.title} ${index < 0 ? "pinned" : "unpinned"}.`); persist();
-      if (active === "pinned" && index >= 0) {
-        const next = cards.get(layout.pins[Math.min(index, layout.pins.length - 1)]);
-        (next?.pin || doc.getElementById("browseCharts")).focus({ preventScroll: true });
-      }
+      record.pin.focus({ preventScroll: true }); record.card.scrollIntoView({ block: "nearest" });
     });
     const order = doc.createElement("div"); order.className = "chart-order";
     const up = doc.createElement("button"), down = doc.createElement("button"), position = doc.createElement("span");
@@ -169,8 +173,12 @@ export function initDashboard(doc = document, win = window) {
       button.type = "button"; button.className = "btn"; button.textContent = label;
       button.setAttribute("aria-label", `Move ${record.title} ${direction < 0 ? "earlier" : "later"}`);
       button.addEventListener("click", () => {
-        if (active === "pinned") layout.pins = moveItem(layout.pins, key, direction);
-        else layout.order[record.section] = moveItem(layout.order[record.section], key, direction);
+        if (layout.pins.includes(key)) layout.pins = moveItem(layout.pins, key, direction);
+        else {
+          const visible = layout.order[record.section].filter(k => !layout.pins.includes(k));
+          const moved = moveItem(visible, key, direction); let i = 0;
+          layout.order[record.section] = layout.order[record.section].map(k => layout.pins.includes(k) ? k : moved[i++]);
+        }
         applyLayout(); announce(`${record.title} moved ${direction < 0 ? "earlier" : "later"}.`); persist();
         const focus = !button.disabled ? button : direction < 0 ? down : up;
         focus.focus({ preventScroll: true }); record.card.scrollIntoView({ block: "nearest" });
@@ -184,45 +192,26 @@ export function initDashboard(doc = document, win = window) {
       down.setAttribute("aria-label", `Move ${record.title} later`);
     }).observe(record.card.querySelector("h3"), { childList: true, subtree: true, characterData: true });
   }
-  function fromHash() {
-    let id;
-    try { id = decodeURIComponent(win.location.hash.slice(1)); } catch { return "live"; }
-    if (panels.has(id)) return id;
-    return TABS.find(t => t.sections.includes(id))?.id || "live";
-  }
-  function selectTab(id, { focus = false, scroll = false, history = true } = {}) {
+  function markCurrent(id) {
     if (!panels.has(id)) return;
-    closeSettings();
     active = id;
-    for (const button of tabs) {
-      const selected = button.dataset.tab === id;
-      button.setAttribute("aria-selected", String(selected)); button.tabIndex = selected ? 0 : -1;
-      button.setAttribute("aria-controls", `panel-${button.dataset.tab}`);
+    for (const link of tabs) {
+      if (link.dataset.section === id) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
     }
-    for (const [key, panel] of panels) panel.hidden = key !== id;
-    applyLayout();
-    const button = tabs.find(b => b.dataset.tab === id);
-    if (focus) button.focus({ preventScroll: true });
-    // Scroll only the tab strip: scrollIntoView here would jump a scrolled page.
-    const strip = button.parentElement;
-    const left = button.offsetLeft - strip.offsetLeft, right = left + button.offsetWidth;
-    if (left < strip.scrollLeft) strip.scrollLeft = left;
-    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+
+  }
+  function selectTab(id, { focus = false, scroll = true, history = true, behavior } = {}) {
+    if (!panels.has(id)) return;
+    closeSettings(); markCurrent(id);
     if (history && win.location.hash !== `#${id}`) win.history.pushState(null, "", `#${id}`);
-    if (scroll) nav.scrollIntoView({ block: "start" });
+    if (scroll) panels.get(id).scrollIntoView({ block: "start", behavior: behavior || "auto" });
+    if (focus) panels.get(id).focus({ preventScroll: true });
   }
-  for (const button of tabs) {
-    button.addEventListener("click", () => selectTab(button.dataset.tab));
-    button.addEventListener("keydown", event => {
-      let index = tabs.indexOf(button);
-      if (event.key === "ArrowRight") index = (index + 1) % tabs.length;
-      else if (event.key === "ArrowLeft") index = (index + tabs.length - 1) % tabs.length;
-      else if (event.key === "Home") index = 0;
-      else if (event.key === "End") index = tabs.length - 1;
-      else return;
-      event.preventDefault(); selectTab(tabs[index].dataset.tab, { focus: true });
-    });
-  }
+  for (const link of tabs) link.addEventListener("click", event => {
+    if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault(); selectTab(link.dataset.section, { focus: true });
+  });
   doc.getElementById("arrangeCharts").addEventListener("click", event => {
     arranging = !arranging; root.classList.toggle("arranging", arranging);
     event.currentTarget.setAttribute("aria-pressed", String(arranging));
@@ -235,26 +224,29 @@ export function initDashboard(doc = document, win = window) {
     notifyLayout();
   });
   doc.getElementById("browseCharts").addEventListener("click", () => selectTab("live", { focus: true, scroll: true }));
-  win.addEventListener("hashchange", () => selectTab(fromHash(), { history: false }));
+  function followHash() {
+    let id; try { id = decodeURIComponent(win.location.hash.slice(1)); } catch { id = ""; }
+    const target = doc.getElementById(id), panel = target?.closest(".page-section");
+    if (panel) { closeSettings(); markCurrent(panel.id); target.scrollIntoView({ block: "start", behavior: "auto" }); }
+    else selectTab(sectionForHash(win.location.hash), { history: false, behavior: "auto" });
+  }
+  win.addEventListener("hashchange", followHash);
   doc.addEventListener("click", syncControls);
-  const ignoreSwipe = "button, a, input, select, textarea, canvas, table, .yoy-wrap, .gantt, .seg, .info-pop, [role='tablist']";
-  root.addEventListener("touchstart", event => {
-    touch = null;
-    if (event.touches.length !== 1 || !event.target.closest(".tab-panel") || event.target.closest(ignoreSwipe)) return;
-    const point = event.touches[0]; touch = { x: point.clientX, y: point.clientY, time: event.timeStamp };
+  let pendingFrame = false;
+  win.addEventListener("scroll", () => {
+    if (pendingFrame) return;
+    pendingFrame = true;
+    win.requestAnimationFrame(() => {
+      pendingFrame = false; let current = SECTIONS[0].id;
+      for (const [id, panel] of panels) if (panel.getBoundingClientRect().top <= 120) current = id;
+      if (win.scrollY + win.innerHeight >= doc.documentElement.scrollHeight - 2) current = SECTIONS.at(-1).id;
+      if (current !== active) markCurrent(current);
+    });
   }, { passive: true });
-  root.addEventListener("touchend", event => {
-    const start = touch; touch = null;
-    if (!start || !event.changedTouches.length) return;
-    const point = event.changedTouches[0];
-    const direction = swipeDirection(start, { x: point.clientX, y: point.clientY, time: event.timeStamp });
-    const index = TABS.findIndex(t => t.id === active), target = TABS[index + direction];
-    if (direction && target) selectTab(target.id, { scroll: true });
-  }, { passive: true });
-  root.addEventListener("touchcancel", () => { touch = null; }, { passive: true });
-  nav.hidden = false;
-  selectTab(fromHash(), { history: false });
-  return { selectTab, layout, cards, groups };
+  nav.hidden = false; applyLayout(); markCurrent("live");
+  if (win.location.hash) win.requestAnimationFrame(followHash);
+
+  return { navigate: selectTab, layout, cards, groups };
 }
 
 if (typeof document !== "undefined") initDashboard();
