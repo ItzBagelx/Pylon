@@ -1,4 +1,4 @@
-{"built":"2026-11-12T13:33:01.131Z",
+{"built":"2026-11-12T14:03:00.930Z",
 "source":"NESO historic mix; recent days Elexon with NESO embedded outturn",
 "days":[
 {"d":"2025-10-08","n":48,"mw":{"dom":30798,"nuclear":2783,"biomass":2370,"hydro":535,"wind":7356,"solar":1272,"storage":127,"other":659,"gas":15695}},
