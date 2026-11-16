@@ -1,5 +1,5 @@
-{"built":"2026-11-16T04:10:28.795Z",
-"ok":{"agilePrices":true,"windOutturn":true,"windForecast":true,"generationOutturn":true,"embeddedForecast":true,"demandUpdate":true,"outlook":true,"generation":true,"demand":true,"nesoMix":true,"prices":true,"interconnectors":true,"batteries":true},
+{"built":"2026-11-16T04:40:32.381Z",
+"ok":{"agilePrices":true,"windOutturn":true,"windForecast":true,"generationOutturn":true,"demandUpdate":true,"embeddedForecast":true,"outlook":true,"generation":true,"nesoMix":true,"prices":true,"interconnectors":true,"demand":true,"batteries":true},
 "errors":{},
 "days":749,
 "first":"2024-10-17",
