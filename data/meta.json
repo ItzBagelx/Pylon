@@ -1,4 +1,4 @@
-{"built":"2026-11-26T23:00:44.297Z",
+{"built":"2026-11-26T23:30:53.837Z",
 "ok":{"agilePrices":true,"windOutturn":true,"windForecast":true,"generationOutturn":true,"embeddedForecast":true,"demandUpdate":true,"outlook":true,"generation":true,"prices":true,"demand":true,"nesoMix":true,"interconnectors":true,"batteries":true},
 "errors":{},
 "days":757,
