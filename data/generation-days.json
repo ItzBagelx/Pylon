@@ -1,4 +1,4 @@
-{"built":"2026-11-26T00:29:00.341Z",
+{"built":"2026-11-26T00:59:02.714Z",
 "source":"NESO historic mix; recent days Elexon with NESO embedded outturn",
 "days":[
 {"d":"2025-10-18","n":48,"mw":{"dom":24358,"nuclear":4002,"biomass":2170,"hydro":332,"wind":7787,"solar":591,"storage":132,"other":466,"gas":8878}},
@@ -393,7 +393,7 @@
 {"d":"2026-11-15","n":48,"mw":{"dom":27483,"nuclear":5130,"biomass":2160,"hydro":338,"wind":9952,"solar":567,"storage":186,"other":648,"gas":8502}},
 {"d":"2026-11-16","n":48,"mw":{"dom":31387,"nuclear":5132,"biomass":2374,"hydro":364,"wind":9793,"solar":1721,"storage":253,"other":898,"gas":10853}},
 {"d":"2026-11-17","n":48,"mw":{"dom":33743,"nuclear":5132,"biomass":1910,"hydro":348,"wind":16001,"solar":764,"storage":114,"other":687,"gas":8788}},
-{"d":"2026-11-18","n":48,"mw":{"dom":29893.104166666668,"nuclear":5131.625,"biomass":2007.9166666666667,"hydro":350.5625,"wind":8839.1875,"solar":756.9791666666666,"storage":157.375,"other":766.5833333333334,"gas":11882.875},"estimated":false},
+{"d":"2026-11-18","n":48,"mw":{"dom":29903,"nuclear":5132,"biomass":2008,"hydro":351,"wind":8849,"solar":757,"storage":157,"other":767,"gas":11883}},
 {"d":"2026-11-19","n":48,"mw":{"dom":33209.0625,"nuclear":5129.395833333333,"biomass":1850.8541666666667,"hydro":318.1875,"wind":9587.395833333334,"solar":643.875,"storage":11,"other":754.8958333333334,"gas":14913.458333333334},"estimated":false},
 {"d":"2026-11-20","n":48,"mw":{"dom":30973.166666666668,"nuclear":5133.708333333333,"biomass":2688.2291666666665,"hydro":425.6041666666667,"wind":4648.520833333333,"solar":1101,"storage":264.4583333333333,"other":883.3958333333334,"gas":15828.25},"estimated":false},
 {"d":"2026-11-21","n":48,"mw":{"dom":27227.5625,"nuclear":5132.9375,"biomass":2680.7916666666665,"hydro":309.3541666666667,"wind":3682.5625,"solar":1576.1458333333333,"storage":55.041666666666664,"other":734.25,"gas":13056.479166666666},"estimated":false},
